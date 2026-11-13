@@ -12,6 +12,9 @@ RelatedGuides: [InfraSubstrates]
 
 ## Usage
 
+<code>[InfraSubstrateCode]()[{*name*, *size*}]</code> gives held construction code for the named substrate and size.
+The separate-argument form remains supported.
+
 <code>[InfraSubstrateCode]()[*name*, *size*]</code> gives the code of the substrate <code>[InfraSubstrate]()[*name*, *size*]</code>, held: [ReleaseHold]() of it builds the graph.
 
 <code>[InfraSubstrateCode]()[*name*]</code> gives the code of the `"Medium"` size.

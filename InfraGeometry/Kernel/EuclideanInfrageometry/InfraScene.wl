@@ -156,6 +156,11 @@ InfraUnion[ graph_Graph, args__ ] /; AllTrue[ { args }, MatchQ[ $infraRealisatio
     Union @@ Keys @ densities /;
       AllTrue[ densities, density |-> AssociationQ[ density ] && AllTrue[ Keys @ density, vertex |-> VertexQ[ graph, vertex ] ] ] ]
 
+InfraScene[ graph_Graph, objects_List, hypotheses_List ] :=
+  With[ { scene = InfraScene[ objects, hypotheses ] },
+    InfraScene[ Append[ First[ scene ], "Substrate" -> graph ] ] /;
+      MatchQ[ scene, InfraScene[ _Association ] ] ]
+
 InfraScene[ objects_List, hypotheses_List ] /;
   MemberQ[ hypotheses, _InfraSceneStep ] &&
     undecidableAssertions[ Select[ Join[ DeleteCases[ hypotheses, _InfraSceneStep ], Catenate[ First /@ Cases[ hypotheses, _InfraSceneStep ] ] ],
@@ -176,6 +181,7 @@ InfraScene[ objects_List, hypotheses_List ] /;
         Flatten[ #[ "Assertions" ] & /@ perStep ] ] },
     InfraScene[ <|
       "Objects"         -> objects,
+      "Hypotheses"      -> hypotheses,
       "Constructions"   -> constructions,
       "Assertions"      -> assertions,
       "DependencyGraph" -> None,
@@ -208,6 +214,7 @@ InfraScene[ objects_List, hypotheses_List ] /;
         state |-> Last @ state =!= { } ] },
     InfraScene[ <|
       "Objects"         -> objects,
+      "Hypotheses"      -> hypotheses,
       "Constructions"   -> constructions,
       "Assertions"      -> assertions,
       "DependencyGraph" -> dag,
@@ -216,8 +223,24 @@ InfraScene[ objects_List, hypotheses_List ] /;
       "ManualSteps"     -> False
     |> ] ]
 
-InfraScene[ data_Association ][ prop_String ] :=
+InfraScene[ data_Association ][ "Parameters" ] :=
+  With[ { bindings = Lookup[ data, "Bindings", <| |> ] },
+    Map[ object |-> If[ KeyExistsQ[ bindings, object ], object -> bindings[ object ], object ],
+      If[ KeyExistsQ[ data, "Bindings" ], Select[ data[ "Objects" ], KeyExistsQ[ bindings, # ] & ], data[ "Objects" ] ] ] ]
+
+InfraScene[ data_Association ][ "Properties" ] :=
+  Sort @ DeleteDuplicates @ Join[ Keys[ data ], { "Parameters", "Properties" },
+    If[ KeyExistsQ[ data, "Bindings" ] && KeyExistsQ[ data, "Substrate" ], { "Graphics" }, { } ] ]
+
+InfraScene[ data_Association ][ "Graphics", opts : OptionsPattern[ InfraScenePlot ] ] /;
+    KeyExistsQ[ data, "Bindings" ] && KeyExistsQ[ data, "Substrate" ] :=
+  InfraScenePlot[ InfraScene[ data ], opts ]
+
+InfraScene[ data_Association ][ prop_String ] /; KeyExistsQ[ data, prop ] :=
   data[ prop ]
+
+InfraSceneInstance[ InfraScene[ data_Association ], objects_ ] /; KeyExistsQ[ data, "Bindings" ] :=
+  InfraSceneInstance[ data[ "Bindings" ], objects ]
 
 InfraSceneInstance[ inst_InfraSceneInstance, sym_ ] /; ! ListQ[ sym ] :=
   inst[[ 1 ]][ sym ]
@@ -232,6 +255,15 @@ InfraSceneInstance[ bindings_Association, syms_List ] :=
   bindings /@ syms
 
 Options[ RandomInfraSceneInstance ] = { "NextVertexFunction" -> Automatic, "Steps" -> All, RandomSeeding -> Automatic }
+
+RandomInfraSceneInstance[ scene : InfraScene[ data_Association ],
+    count : ( _Integer?( n |-> n >= 0 ) | UpTo[ _Integer?( n |-> n >= 0 ) ] | All | Automatic ) : Automatic,
+    init : _Association : <| |>, opts : OptionsPattern[] ] /; MatchQ[ Lookup[ data, "Substrate", None ], _Graph ] :=
+  With[ { result = RandomInfraSceneInstance[ scene, data[ "Substrate" ], count,
+      Join[ Lookup[ data, "Bindings", <| |> ], init ], opts ] },
+    Replace[ result, instance_InfraSceneInstance :>
+      InfraScene[ Append[ data, "Bindings" -> First[ instance ] ] ], { 0, 1 } ] /;
+      MatchQ[ result, _InfraSceneInstance | { ___InfraSceneInstance } ] ]
 
 RandomInfraSceneInstance[ scene_InfraScene, graph_Graph,
     count : ( _Integer?( n |-> n >= 0 ) | UpTo[ _Integer?( n |-> n >= 0 ) ] | All | Automatic ) : Automatic,

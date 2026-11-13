@@ -12,6 +12,10 @@ RelatedGuides: [EuclideanInfrageometry]
 
 ## Usage
 
+<code>[InfraScenePlot]()[*instance*]</code> draws the saved realization of an instantiated [InfraScene]().
+
+<code>[InfraScenePlot]()[*instance*, {*obj1*, *obj2*, …}]</code> draws selected saved objects or explicit geometry.
+
 <code>[InfraScenePlot]()[*scene*, *g*, *inst*]</code> draws the objects of *scene* bound in the instance *inst* on the graph *g*.
 
 <code>[InfraScenePlot]()[*scene*, *g*, *inst*, {*obj1*, *obj2*, …}]</code> draws the listed objects, their names read from *inst*.

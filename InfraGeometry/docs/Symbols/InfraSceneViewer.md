@@ -12,6 +12,10 @@ RelatedGuides: [EuclideanInfrageometry]
 
 ## Usage
 
+<code>[InfraSceneViewer]()[*scene*]</code> uses the substrate stored in *scene*.
+For an instantiated scene, its saved bindings are fixed initial data.
+An optional association overrides initial values.
+
 <code>[InfraSceneViewer]()[*scene*, *g*]</code> is an interactive view of the construction *scene* on the graph *g*, one step at a time.
 
 <code>[InfraSceneViewer]()[*scene*, *g*, *init*]</code> starts from the bindings in the association *init*.

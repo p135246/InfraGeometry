@@ -12,6 +12,8 @@ RelatedGuides: [EuclideanInfrageometry]
 
 ## Usage
 
+<code>[InfraScene]()[*g*, {*x1*, *x2*, …}, {*hyp1*, *hyp2*, …}]</code> defines a scene on the graph *g*.
+
 <code>[InfraScene]()[{*x1*, *x2*, …}, {*hyp1*, *hyp2*, …}]</code> is the construction of the objects *x1*, *x2*, … under the hypotheses *hyp1*, *hyp2*, …, stated before any graph.
 
 <code>[InfraScene]()[{*x1*, …}, {[InfraSceneStep]()[{*hyp1*, …}, *label*], …}]</code> groups the hypotheses into labelled steps.
@@ -19,6 +21,11 @@ RelatedGuides: [EuclideanInfrageometry]
 <code>*scene*["*prop*"]</code> gives the property *prop* of the scene.
 
 ## Details & Options
+
+<code>[RandomInfraSceneInstance]()[*scene*]</code> returns an instantiated [InfraScene]() when the scene contains its substrate.
+The scene displays its saved realization automatically while retaining the [InfraScene]() head.
+Display does not search for another realization.
+The explicit-graph form <code>[RandomInfraSceneInstance]()[*scene*, *g*]</code> continues to return [InfraSceneInstance]().
 
 A hypothesis `x == token` with an object on the left is a construction. Every other hypothesis is an assertion.
 
@@ -41,6 +48,12 @@ The steps are the levels of the dependency graph: first the objects that depend 
 
 | Property | Value |
 |---|---|
+| `"Properties"` | supported property names |
+| `"Substrate"` | the graph, for a substrate-bound scene |
+| `"Hypotheses"` | the original hypotheses |
+| `"Parameters"` | declared objects before sampling; saved `object -> value` rules afterward, in declaration order |
+| `"Graphics"` | the saved realization as a [Graph](), available after sampling |
+| `"Bindings"` | the saved binding association, available after sampling |
 | `"Objects"` | the objects |
 | `"Constructions"` | the constructions, `<\|x -> token, …\|>` |
 | `"Assertions"` | the assertions |
@@ -53,6 +66,29 @@ The objects are symbols without values.
 A construction can stall. Euclid never postulated that the two circles of I.1 meet, and on a graph they need not. A shell of the square grid has no two adjacent vertices, so there is no circle of one radius; a band of two radii carries circles, and there the construction goes through.
 
 ## Basic Examples
+
+A segment on a path graph:
+
+```wl
+RandomInfraSceneInstance[
+  InfraScene[
+    PathGraph[ Range[ 5 ] ],
+    {a, b, segment},
+    {
+      a == InfraPoint[ 1 ],
+      b == InfraPoint[ 5 ],
+      segment == InfraSegment[ a, b ]
+    }
+  ],
+  RandomSeeding -> 1
+]
+```
+
+For a result assigned to `instance`, `instance[ "Parameters" ]` gives its saved rules and `instance[ "Graphics" ]` draws them.
+Partial instances report only the parameters already bound.
+Use `instance[ "Graphics", ImageSize -> 300 ]` to pass drawing options.
+
+The following examples also illustrate the existing explicit-graph API.
 
 Euclid I.1: two points at distance 3, a circle about each through the other, and a vertex where they meet. On the grid the circles need a band:
 

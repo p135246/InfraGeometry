@@ -12,13 +12,17 @@ RelatedGuides: [EuclideanInfrageometry]
 
 ## Usage
 
-<code>[InfraSubstrate]()[*name*, *size*]</code> is the example graph *name* at the size `"Small"`, `"Medium"` or `"Large"`.
+<code>[InfraSubstrate]()[{*name*, *size*}]</code> is the example graph *name* at the size `"Small"`, `"Medium"` or `"Large"`.
 
 <code>[InfraSubstrate]()[*name*]</code> is the `"Medium"` size.
 
 <code>[InfraSubstrate]()[]</code> gives the names grouped by what they model; <code>[InfraSubstrate]()[All]</code> gives the list of names.
 
 ## Details & Options
+
+The separate arguments `InfraSubstrate[name, size]` remain supported.
+Both forms accept drawing options and an optional style after the size specification.
+`InfraSubstrate[name, opts]` uses the medium size.
 
 A substrate is a graph a construction runs on, a discrete stand-in for a space.
 
@@ -51,6 +55,12 @@ A substrate built by a random construction is seeded with [SeedRandom]() in fron
 | `"Inflate"` | `None` | *k* new vertices over every vertex, as in `InflateGraph` |
 
 ## Basic Examples
+
+Build a small grid substrate:
+
+```wl
+InfraSubstrate[ {"SquareGridGraph", "Small"} ]
+```
 
 The square grid and the square mesh at size `"Small"`, with the shell of radius 4 about the centre:
 

@@ -20,6 +20,9 @@ RelatedGuides: [EuclideanInfrageometry]
 
 ## Details & Options
 
+The accessor also accepts an instantiated [InfraScene]().
+Its saved binding association is read in the same way.
+
 An instance is one branch of an [InfraScene](): a choice of one realisation for each construction, with every assertion true. [RandomInfraSceneInstance]() draws instances, one by default, a list with a count or `All`.
 
 A value is what the construction realised on the graph:

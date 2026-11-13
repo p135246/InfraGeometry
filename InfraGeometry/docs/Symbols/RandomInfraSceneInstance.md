@@ -12,6 +12,12 @@ RelatedGuides: [EuclideanInfrageometry]
 
 ## Usage
 
+<code>[RandomInfraSceneInstance]()[*scene*]</code> gives an instantiated [InfraScene]() on the substrate stored in *scene*.
+
+<code>[RandomInfraSceneInstance]()[*scene*, *n*]</code> gives a list of instantiated scenes.
+
+<code>[RandomInfraSceneInstance]()[*scene*, *bindings*]</code> fixes initial bindings; a count may precede *bindings*.
+
 <code>[RandomInfraSceneInstance]()[*scene*, *g*]</code> gives a random instance of the [InfraScene]() *scene* on the graph *g*.
 
 <code>[RandomInfraSceneInstance]()[*scene*, *g*, *n*]</code> gives a list of *n* distinct instances.
@@ -20,7 +26,12 @@ RelatedGuides: [EuclideanInfrageometry]
 
 ## Details & Options
 
-An instance binds every object of the scene to a vertex, a vertex list or a member of its construction, so that every assertion holds. It is an [InfraSceneInstance]() and gives the value of an object *x* as <code>[InfraSceneInstance]()[*inst*, *x*]</code>.
+A substrate-bound result retains the [InfraScene]() head, substrate, hypotheses and construction steps.
+Its `"Parameters"` property gives saved rules and its `"Graphics"` property draws the saved branch.
+Sampling an already instantiated scene keeps its saved bindings; a supplied binding association overrides those initial values.
+A partial instance can therefore be continued by passing it back to this function.
+
+An instance binds every object of the scene to a vertex, a vertex list or a member of its construction, so that every assertion holds. With an explicit graph argument it is an [InfraSceneInstance]() and gives the value of an object *x* as <code>[InfraSceneInstance]()[*inst*, *x*]</code>.
 
 A construction is a family, so a scene has many instances. A segment gives one instance per shortest path, and so the instances of "a point at distance *d* from *c* and the segment to it" are counted by *Σ C(c, v)* over the vertices *v* at distance *d*, with *C(c, v)* the number of shortest paths.
 
@@ -39,6 +50,25 @@ Options:
 With a pruning function such as `RandomSample[#, UpTo[2]] &`, `All` gives every instance of the pruned search only.
 
 ## Basic Examples
+
+Draw one scene directly:
+
+```wl
+RandomInfraSceneInstance[
+  InfraScene[
+    PathGraph[ Range[ 5 ] ],
+    {a, b, segment},
+    {
+      a == InfraPoint[ 1 ],
+      b == InfraPoint[ 5 ],
+      segment == InfraSegment[ a, b ]
+    }
+  ],
+  RandomSeeding -> 1
+]
+```
+
+The following examples use the explicit-graph API.
 
 A point at distance 3 from the centre and the segment to it, one instance on the square grid and on the square mesh:
 

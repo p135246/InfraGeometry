@@ -148,6 +148,10 @@ Options[ InfraSceneViewer ] = {
   ImageSize        -> 500
 }
 
+InfraSceneViewer[ scene : InfraScene[ data_Association ], init : _Association : <| |>, opts : OptionsPattern[] ] /;
+    MatchQ[ Lookup[ data, "Substrate", None ], _Graph ] :=
+  InfraSceneViewer[ scene, data[ "Substrate" ], Join[ Lookup[ data, "Bindings", <| |> ], init ], opts ]
+
 InfraSceneViewer[ scene_InfraScene, graph_Graph, init : _Association : <| |>, opts : OptionsPattern[ ] ] :=
   With[ {
       nSteps   = Length @ scene[ "Steps" ],

@@ -4,6 +4,20 @@ Package[ "WolframInstitute`InfraGeometry`" ]
 
 Options[ InfraScenePlot ] := Options[ InfraSubstrateHighlight ]
 
+InfraScenePlot[ scene : InfraScene[ data_Association ], opts : OptionsPattern[] ] /;
+    KeyExistsQ[ data, "Bindings" ] && KeyExistsQ[ data, "Substrate" ] :=
+  InfraScenePlot[ scene, data[ "Substrate" ], InfraSceneInstance[ data[ "Bindings" ] ], opts ]
+
+InfraScenePlot[ scene : InfraScene[ data_Association ], objects_List, opts : OptionsPattern[] ] /;
+    KeyExistsQ[ data, "Bindings" ] && KeyExistsQ[ data, "Substrate" ] :=
+  InfraScenePlot[ scene, data[ "Substrate" ], InfraSceneInstance[ data[ "Bindings" ] ], objects, opts ]
+
+InfraScene /: MakeBoxes[ scene : InfraScene[ data_Association ], form : ( StandardForm | TraditionalForm ) ] /;
+    KeyExistsQ[ data, "Bindings" ] && KeyExistsQ[ data, "Substrate" ] :=
+  With[ { graphic = InfraScenePlot[ scene ] },
+    With[ { boxes = MakeBoxes[ graphic, form ] },
+      InterpretationBox[ boxes, scene ] ] /; GraphQ[ graphic ] ]
+
 InfraScenePlot[ scene_InfraScene, graph_Graph, instance : InfraSceneInstance[ bindings_Association ], opts : OptionsPattern[] ] /;
 	AssociationQ[ First[ scene ] ] && AllTrue[ { opts }, MatchQ[ _Rule | _RuleDelayed ] ] :=
 	InfraScenePlot[ scene, graph, instance, Select[ scene[ "Objects" ], name |-> KeyExistsQ[ bindings, name ] ], opts ]

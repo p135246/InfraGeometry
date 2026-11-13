@@ -22,8 +22,14 @@ InfraSubstrate[ ] :=
 InfraSubstrate[ All ] :=
   Catenate @ Values @ InfraSubstrate[ ]
 
-InfraSubstrate[ name_String /; MemberQ[ InfraSubstrate[ All ], name ] || StringMatchQ[ name, "wm" ~~ DigitCharacter .. ] ] :=
-  InfraSubstrate[ name, "Medium" ]
+InfraSubstrate[ { name_String, size_ }, style : ( _String | Automatic ) : Automatic,
+    opts : OptionsPattern[ { InfraSubstrate, Graph } ] ] /;
+    MemberQ[ InfraSubstrate[ All ], name ] || StringMatchQ[ name, "wm" ~~ DigitCharacter .. ] :=
+  InfraSubstrate[ name, size, style, opts ]
+
+InfraSubstrate[ name_String, opts : OptionsPattern[ { InfraSubstrate, Graph } ] ] /;
+    MemberQ[ InfraSubstrate[ All ], name ] || StringMatchQ[ name, "wm" ~~ DigitCharacter .. ] :=
+  InfraSubstrate[ name, "Medium", Automatic, opts ]
 
 InfraSubstrate[ name_String /; MemberQ[ InfraSubstrate[ All ], name ] || StringMatchQ[ name, "wm" ~~ DigitCharacter .. ],
     size_, style : ( _String | Automatic ) : Automatic, opts : OptionsPattern[ { InfraSubstrate, Graph } ] ] :=
@@ -122,8 +128,13 @@ InfraSubstrate[ name_String /; MemberQ[ InfraSubstrate[ All ], name ] || StringM
 
 Options[ InfraSubstrateCode ] = Options[ InfraSubstrate ]
 
-InfraSubstrateCode[ name_String /; MemberQ[ InfraSubstrate[ All ], name ] || StringMatchQ[ name, "wm" ~~ DigitCharacter .. ] ] :=
-  InfraSubstrateCode[ name, "Medium" ]
+InfraSubstrateCode[ { name_String, size_ }, opts : OptionsPattern[ { InfraSubstrate, Graph } ] ] /;
+    MemberQ[ InfraSubstrate[ All ], name ] || StringMatchQ[ name, "wm" ~~ DigitCharacter .. ] :=
+  InfraSubstrateCode[ name, size, opts ]
+
+InfraSubstrateCode[ name_String, opts : OptionsPattern[ { InfraSubstrate, Graph } ] ] /;
+    MemberQ[ InfraSubstrate[ All ], name ] || StringMatchQ[ name, "wm" ~~ DigitCharacter .. ] :=
+  InfraSubstrateCode[ name, "Medium", opts ]
 
 InfraSubstrateCode[ name_String /; MemberQ[ InfraSubstrate[ All ], name ] || StringMatchQ[ name, "wm" ~~ DigitCharacter .. ],
     size_, opts : OptionsPattern[ { InfraSubstrate, Graph } ] ] :=
