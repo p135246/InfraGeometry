@@ -5,279 +5,290 @@ Title: The Breathless Line
 Context: WolframInstitute`InfraGeometry`
 Paclet: WolframInstitute/InfraGeometry
 URI: WolframInstitute/InfraGeometry/tutorial/BreathlessLineTutorial
-Keywords: [line, triangle, shortest paths, occupation probability, weak convergence, tessellation, mesh, barycentric subdivision]
+Keywords: [line, triangle, shortest paths, occupation probability, weak convergence, square grid, mesh, scaling limit]
 RelatedGuides: [EuclideanInfrageometry]
 ---
 
 *Reviewed by Pavel Hajek.*
 
-Euclid describes a line as a "breadthless length". Every line we draw has some thickness; a line without breadth belongs to an idealized geometry. We ask whether such an ideal object can emerge from a discrete substrate: can a family of shortest paths, spread across a graph, concentrate on a straight segment as the graph is refined?
-
-To make this precise, start with a graph ${G}_{0}$ embedded in ${\mathbb{R}}^{2}$ and specify how it is subdivided. For a triangular mesh, we can consider barycentric subdivision and write ${G}_{n}={B}^{n}({G}_{0})$. The original endpoints remain fixed, so ${a}_{n}=a$ and ${b}_{n}=b$, while the minimal model ${l}_{n}(a,b)$ may contain many shortest paths.
-
-Each subdivision inherits an embedding. Counting the paths through each edge or vertex gives an occupation density. We ask whether its normalized measure converges weakly to uniform length on the straight segment $[a,b]$, and how quickly its transverse spread vanishes.
-
-The regular triangular tessellation provides a natural comparison: does it have the same convergence rate, or is it special in some way?
-
-Instead of barycentric subdivision, we can also consider midpoint refinements of square and triangular grids.
-
-For the hexagonal tessellation, we first need to decide what refinement should mean.
-
-Now we will try to formulate the problem without a fixed embedding.
-
-## Setup
-
-Barycentric subdivision comes from the DiscreteGeometry paclet.
+Can a family of shortest paths spread across a graph produce a line with no breadth?
+On the square grid, the normalized occupation measure converges to uniform length on a straight segment, though the union of the paths still fills a square.
+We prove this and compare the finite measurements to the formula.
 
 ```wl
-Needs["WolframInstitute`InfraGeometry`"]
-Needs["WolframInstitute`DiscreteGeometry`"]
+Needs[ "WolframInstitute`InfraGeometry`" ]
 ```
 
-## Paths and occupation
+## A probability measure on a segment
 
-Let $a,b$ be distinct vertices of a finite unweighted graph. Suppose there are $N$ shortest paths between them, each with $L$ edges.
-
-Write ${c}_{E}(e)$ for the number of these paths containing edge $e$, and ${c}_{V}(v)$ for the number containing vertex $v$. Each path contributes $L$ edge visits and $L+1$ vertex visits, so
+Let $a,b$ be distinct vertices of a finite connected unweighted graph.
+Suppose there are $N$ shortest paths between them, each of length $L$.
+If $c_E(e)$ counts these paths through edge $e$, then
 
 $$
-\boxed{\sum _{e}{c}_{E}(e)=N L,\qquad \sum _{v}{c}_{V}(v)=N(L+1)}
+\sum_e c_E(e)=NL.
 $$
 
-For example, the two-square grid below has three shortest paths from a to b, each of length three. The edge labels are the occupation counts; they sum to nine.
+Choose a path uniformly, then choose one of its edges uniformly.
+The probability of observing edge $e$ is
+
+$$
+p_E(e)=\frac{c_E(e)}{NL}.
+$$
+
+The occupation probability $c_E(e)/N$ has total mass $L$; dividing by $L$ makes a probability distribution over locations.
+[InfraMeasurement]() supplies $c_E$ through `"EdgeDensity"`, without enumerating the paths.
+
+Choose an embedding and align the endpoints to $(0,0)$ and $(1,0)$ using translation, rotation and uniform rescaling.
+Place the mass of each edge at its midpoint $x(e)$:
+
+$$
+\mu=\sum_e p_E(e)\delta_{x(e)}.
+$$
+
+This is the normalization used across scales: endpoint separation and total mass are both one.
+The graph determines the paths and weights; the embedding determines their positions.
+
+## The square grid
+
+Take the grid $\{0,\ldots,n\}^2$ with endpoints $(0,0)$ and $(n,n)$.
+Every shortest path has $2n$ steps, with $n$ horizontal and $n$ vertical steps.
+There are $\binom{2n}{n}$ such paths.
+The aligned coordinates are
+
+$$
+\varphi_n(i,j)=\left(\frac{i+j}{2n},\frac{j-i}{2n}\right).
+$$
+
+The panels show $n=8,16,32$ with endpoints fixed.
+Thickness records relative occupation within each panel.
+Every grid edge lies on some shortest path, so the narrowing reflects changing weights rather than shrinking support.
+The dashed orange lines enclose a strip of half-width $2\sqrt{(4n-1)/(48n^2)}$.
+The second-moment computation below shows that this strip contains at least three quarters of the occupation mass at every $n$.
+Its width shrinks while the gray boundary of the support stays fixed.
+
+```wl
+GraphicsRow[ Table[
+  With[
+    { coordinates = Map[ point |-> { Total[ point ], point[[ 2 ]] - point[[ 1 ]] } / ( 2 n ),
+        Tuples[ Range[ 0, n ], 2 ] ] },
+    { g = GridGraph[ { n + 1, n + 1 }, VertexCoordinates -> coordinates,
+        Sequence @@ InfraSubstrateStyle[ "Large" ] ] },
+    { halfWidth = 2 Sqrt[ ( 4 n - 1 ) / ( 48 n^2 ) ] },
+    Labeled[
+      InfraSubstrateHighlight[ g, {
+        InfraSegment[ 1, ( n + 1 )^2 ] -> StandardBlue,
+        { 1, ( n + 1 )^2 } -> StandardBlue },
+        Epilog -> {
+          StandardGray, Line[ { { 0, 0 }, { 1/2, -1/2 }, { 1, 0 }, { 1/2, 1/2 }, { 0, 0 } } ],
+          StandardOrange, Dashed,
+          Line[ { { 0, -halfWidth }, { 1, -halfWidth } } ],
+          Line[ { { 0, halfWidth }, { 1, halfWidth } } ] },
+        PlotRange -> { { 0, 1 }, { -1/2, 1/2 } }, "ThicknessRange" -> { 0.1, 5 } ],
+      Row[ { "n = ", n, ", strip mass at least 3/4" } ] ] ],
+  { n, { 8, 16, 32 } } ], ImageSize -> 1000 ]
+```
+
+## Why the breadth vanishes
+
+Choose one of the paths uniformly and write $S_k$ for its number of vertical steps minus horizontal steps after $k$ steps.
+The vertical-step count is hypergeometric, because the $n$ vertical steps occupy a uniformly chosen subset of the $2n$ positions.
+Consequently,
+
+$$
+\mathbb E S_k=0,\qquad
+\mathbb E S_k^2=\frac{k(2n-k)}{2n-1}.
+$$
+
+Let $\xi_{k+1}=S_{k+1}-S_k\in\{-1,1\}$.
+Given $S_k$, the mean next increment is $-S_k/(2n-k)$, so $\mathbb E(S_k\xi_{k+1})=-k/(2n-1)$.
+The midpoint of edge $k+1$ has coordinates
+
+$$
+X=\frac{k+1/2}{2n},\qquad Y=\frac{S_k+\xi_{k+1}/2}{2n}.
+$$
+
+Uniform edge choice makes $k$ uniform on $\{0,\ldots,2n-1\}$.
+The second moment average is
+
+$$
+\mathbb E Y^2
+=\frac{1}{2n}\sum_{k=0}^{2n-1}
+\frac{k(2n-k-1)/(2n-1)+1/4}{4n^2}
+=\frac{4n-1}{48n^2}.
+$$
+
+Chebyshev's inequality gives
+
+$$
+\Pr(|Y|>\delta)\leq\frac{4n-1}{48n^2\delta^2}
+<\frac{1}{12n\delta^2}.
+$$
+
+For each fixed $\delta>0$, this bound tends to zero.
+Taking $\delta=2\sqrt{\mathbb E Y^2}$ instead gives the three-quarter mass guarantee for the shrinking strips in the figure.
+For continuous $f$, uniform continuity on the fixed aligned square then gives $\mathbb E f(X,Y)-\mathbb E f(X,0)\to0$.
+The second expectation is a midpoint Riemann sum.
+Therefore $\mu_n$ converges weakly to uniform length on the segment:
+
+$$
+\int f\,d\mu_n\longrightarrow\int_0^1 f(t,0)\,dt
+$$
+
+for every bounded continuous $f$.
+The unscaled transverse width grows like $\sqrt n$ lattice spacings, while its width relative to endpoint separation decreases like $n^{-1/2}$.
+
+## Measuring the limit
+
+For a point $(X,Y)$ sampled from $\mu$, define its width and longitudinal discrepancy by
+
+$$
+w=\sqrt{\mathbb E Y^2},\qquad
+D=\sup_t\left|\Pr(X\leq t)-U(t)\right|,
+$$
+
+where $U$ is the distribution function of the uniform law on $[0,1]$.
+The square-grid formulas are
+
+$$
+w_n=\sqrt{\frac{4n-1}{48n^2}},\qquad D_n=\frac{1}{4n}.
+$$
+
+The second formula follows from the largest discrepancy at a jump of the midpoint distribution.
+The helper below computes both quantities from edge densities and the graph's current embedding.
+
+```wl
+lineReadouts[ g_Graph, a_, b_ ] :=
+  With[
+    { density = InfraMeasurement[ g, InfraSegment[ a, b ], "EdgeDensity" ],
+      coordinates = AssociationThread[ VertexList[ g ], GraphEmbedding[ g ] ] },
+    { masses = Values[ density ] / Total[ density ], direction = coordinates[ b ] - coordinates[ a ] },
+    { midpoints = Map[
+        edge |-> { direction, Cross[ direction ] } .
+          ( Mean[ Lookup[ coordinates, List @@ edge ] ] - coordinates[ a ] ) / ( direction . direction ),
+        Keys[ density ] ] },
+    { order = Ordering[ midpoints[[ All, 1 ]] ] },
+    { cumulative = Accumulate[ masses[[ order ]] ], positions = Clip[ midpoints[[ order, 1 ]], { 0, 1 } ] },
+    { Sqrt[ masses . midpoints[[ All, 2 ]]^2 ],
+      Max[ Abs[ cumulative - positions ], Abs[ cumulative - masses[[ order ]] - positions ] ] } ]
+```
+
+The orange points are measured from the graphs; the blue curves are the exact formulas.
+Both plots use the same endpoint and mass normalization as the pictures.
 
 ```wl
 With[
-  {g = GridGraph[{2, 3}]},
-  {counts = InfraMeasurement[g, InfraSegment[1, 6], "EdgeDensity"]},
-  Graph[InfraSubstrateHighlight[g, {InfraSegment[1, 6] -> StandardBlue, {1, 6} -> StandardBlue}],
-    EdgeLabels -> Normal @ KeyMap[UndirectedEdge @@ # &, counts], VertexLabels -> {1 -> Placed["a", Before], 6 -> Placed["b", After]}]]
+  { readouts = Table[
+      With[
+        { g = GridGraph[ { n + 1, n + 1 }, VertexCoordinates -> Tuples[ Range[ 0, n ], 2 ] ] },
+        Prepend[ lineReadouts[ g, 1, ( n + 1 )^2 ], n ] ],
+      { n, { 4, 8, 12, 16, 24, 32 } } ] },
+  GraphicsRow[ {
+    Show[
+      Plot[ Sqrt[ ( 4 n - 1 ) / ( 48 n^2 ) ], { n, 4, 32 },
+        PlotStyle -> StandardBlue, AxesLabel -> { "n", "w" } ],
+      ListPlot[ readouts[[ All, { 1, 2 } ]], PlotStyle -> StandardOrange, PlotMarkers -> Automatic ] ],
+    Show[
+      Plot[ 1 / ( 4 n ), { n, 4, 32 }, PlotStyle -> StandardBlue, AxesLabel -> { "n", "D" } ],
+      ListPlot[ readouts[[ All, { 1, 3 } ]], PlotStyle -> StandardOrange, PlotMarkers -> Automatic ] ] },
+    ImageSize -> 1000 ] ]
 ```
 
-These counts give several probability distributions, depending on *what we choose at random*.
+## Beyond the grid
 
-**Choose a path uniformly.** The probabilities that it contains a given edge or vertex are
-
-$$
-{q}_{E}(e)=\frac{{c}_{E}(e)}{N},\qquad {q}_{V}(v)=\frac{{c}_{V}(v)}{N}.
-$$
-
-These are *occupation probabilities*. They sum to $L$ and $L+1$, respectively: one path occupies several edges and vertices. In particular, ${q}_{V}(a)={q}_{V}(b)=1$.
-
-**Choose a location along that path.** After choosing the path, choose one of its edges or vertices uniformly. The resulting distributions are
-
-$$
-{p}_{E}(e)=\frac{{c}_{E}(e)}{N L},\qquad {p}_{V}(v)=\frac{{c}_{V}(v)}{N(L+1)}.
-$$
-
-Each sums to one. They describe where a randomly sampled edge visit or vertex visit occurs.
-
-**Observe the path at a fixed step.** At step $k$, every shortest path occupies exactly one vertex at graph distance $k$ from $a$. Thus
-
-$$
-{\rho }_{k}(v)=\begin{cases}\frac{{c}_{V}(v)}{N} & d(a,v)=k \\ 0 & \text{otherwise}\end{cases},\qquad \sum _{v}{\rho }_{k}(v)=1.
-$$
-
-The vertex distribution above is their average:
-
-$$
-{p}_{V}(v)=\frac{1}{L+1}\sum _{k=0}^{L}{\rho }_{k}(v).
-$$
-
-We can also choose uniformly from all edges—or all vertices—that occur in at least one shortest path. This gives equal weight to every occupied location, regardless of how many paths pass through it. It describes the **support**, while the distributions ${p}_{E}$ and ${p}_{V}$ retain the multiplicity of paths.
-
-## The picture
-
-Take growing neighborhoods of a center in the square, triangular and hexagonal tessellations. On the shell at half the graph radius, choose two vertices joined by many shortest paths: the first vertex of the shell, and the vertex of the shell with the most shortest paths from it.
-
-Draw the whole graph using a *spring-electric embedding*. Translate, rotate and uniformly rescale this drawing so that the two selected vertices occupy the same positions at every size:
-
-$$
-{\varphi }_{n}(v)={s}_{n}{R}_{n}{F}_{n}(v)+{t}_{n},\qquad {\varphi }_{n}({a}_{n})=(0,0),\qquad {\varphi }_{n}({b}_{n})=(1,0).
-$$
-
-Here ${F}_{n}$ is the spring-electric layout, ${R}_{n}$ is a rotation, ${s}_{n}$ is a positive scale, and ${t}_{n}$ is a translation. The graph determines shortest paths; this embedding determines the geometric positions we compare.
-
-The columns are square, triangular and hexagonal tessellations; sizes increase down the rows. The endpoints are fixed. Edge thickness is proportional to ${p}_{E}$, with the thickest edge set to the same display width in each panel.
+The columns below are square, triangular and hexagonal tilings and an irregular mesh.
+The rows show medium and large substrates in their inherited coordinates, with endpoints aligned to $(0,0)$ and $(1,0)$.
+The blue occupation is compared with the dashed straight chord.
+On the shell at half the graph radius, choose its first vertex and then the vertex with the largest number of shortest paths to it.
+This selection rule applies uniformly across substrates.
 
 ```wl
-GraphicsGrid @ Table[
+lineSubstrates = Table[
   With[
-    {g = (SeedRandom[2]; InfraSubstrate[name, size])},
-    {c = First @ GraphCenter[g]},
-    {shell = Keys @ InfraMeasurement[g, InfraShell[c, Floor[GraphRadius[g]/2]], "VertexDensity"]},
-    {a = First @ shell},
-    {b = First @ MaximalBy[shell, InfraMeasurement[g, InfraSegment[a, #], "Cardinality"] &]},
-    {xy = AssociationThread[VertexList[g], GraphEmbedding[g]]},
-    {u = xy[b] - xy[a]},
-    {aligned = (p |-> {u, Cross[u]} . (p - xy[a]) / (u . u)) /@ GraphEmbedding[g]},
-    InfraSubstrateHighlight[Graph[g, VertexCoordinates -> aligned], {InfraSegment[a, b] -> StandardBlue, {a, b} -> StandardBlue}]],
-  {size, {"Small", "Medium", "Large"}},
-  {name, {"SquareTilingGraph", "TriangularTilingGraph", "HexagonalTilingGraph"}}]
+    { g = BlockRandom[ InfraSubstrate[ name, size, "KeepCoordinates" -> True ], RandomSeeding -> 2 ] },
+    { centre = First @ GraphCenter[ g ], r = Floor[ GraphRadius[ g ] / 2 ] },
+    { shell = Keys @ InfraMeasurement[ g, InfraShell[ centre, r ], "VertexDensity" ] },
+    { a = First[ shell ] },
+    { b = First @ MaximalBy[ shell, v |-> InfraMeasurement[ g, InfraSegment[ a, v ], "Cardinality" ] ] },
+    <| "Graph" -> g, "Endpoints" -> { a, b }, "Radius" -> r, "Shell" -> shell |> ],
+  { size, { "Small", "Medium", "Large" } },
+  { name, { "SquareTilingGraph", "TriangularTilingGraph", "HexagonalTilingGraph", "SquareMeshGraph" } } ];
+GraphicsGrid[
+  Map[
+    data |-> With[
+      { g = data[ "Graph" ], a = data[ "Endpoints" ][[ 1 ]], b = data[ "Endpoints" ][[ 2 ]] },
+      { coordinates = AssociationThread[ VertexList[ g ], GraphEmbedding[ g ] ] },
+      { direction = coordinates[ b ] - coordinates[ a ] },
+      { aligned = Map[ point |-> { direction, Cross[ direction ] } .
+          ( point - coordinates[ a ] ) / ( direction . direction ), GraphEmbedding[ g ] ] },
+      InfraSubstrateHighlight[ Graph[ g, VertexCoordinates -> aligned ], {
+        InfraSegment[ a, b ] -> StandardBlue, { a, b } -> StandardBlue },
+        Epilog -> { StandardRed, Dashed, Line[ { { 0, 0 }, { 1, 0 } } ] } ,
+        "ThicknessRange" -> { 1.25, 5 } ] ],
+    Rest[ lineSubstrates ], { 2 } ],
+  ImageSize -> 1200 ]
 ```
 
-The same construction on a triangulated mesh, from coarse to fine:
-
-```wl
-GraphicsRow @ Table[
-  With[
-    {g = (SeedRandom[2]; InfraSubstrate["SquareMeshGraph", size])},
-    {c = First @ GraphCenter[g]},
-    {shell = Keys @ InfraMeasurement[g, InfraShell[c, Floor[GraphRadius[g]/2]], "VertexDensity"]},
-    {a = First @ shell},
-    {b = First @ MaximalBy[shell, InfraMeasurement[g, InfraSegment[a, #], "Cardinality"] &]},
-    {xy = AssociationThread[VertexList[g], GraphEmbedding[g]]},
-    {u = xy[b] - xy[a]},
-    {aligned = (p |-> {u, Cross[u]} . (p - xy[a]) / (u . u)) /@ GraphEmbedding[g]},
-    InfraSubstrateHighlight[Graph[g, VertexCoordinates -> aligned], {InfraSegment[a, b] -> StandardBlue, {a, b} -> StandardBlue}]],
-  {size, {"Small", "Medium", "Large"}}]
-```
-
-**Subdivision.** Start with a square split along one diagonal and choose the two opposite corners off that diagonal. Barycentric subdivision splits every triangle into six. A vertex of the subdivision is a chain of faces, and an original corner stays the singleton chain at every level. Keep the original endpoints and draw each graph in its inherited embedding, aligned by the same rule.
-
-```wl
-GraphicsRow @ Table[
-  With[
-    {g = Nest[BarycentricRefinement, Graph[{1 <-> 2, 2 <-> 3, 3 <-> 4, 4 <-> 1, 1 <-> 3}], k]},
-    {a = Nest[List, 2, k], b = Nest[List, 4, k]},
-    {xy = AssociationThread[VertexList[g], GraphEmbedding[g]]},
-    {u = xy[b] - xy[a]},
-    {aligned = (p |-> {u, Cross[u]} . (p - xy[a]) / (u . u)) /@ GraphEmbedding[g]},
-    InfraSubstrateHighlight[Graph[g, VertexCoordinates -> aligned], {InfraSegment[a, b] -> StandardBlue, {a, b} -> StandardBlue}]],
-  {k, {2, 3, 4}}]
-```
-
-The panels show two, three and four subdivisions. All edges have unit cost. This is a nested refinement of one complex; the preceding tessellation panels are growing neighborhoods.
-
-## A line takes shape
-
-Place each edge probability at its embedded midpoint ${x}_{n}(e)$. This gives a probability measure in the plane:
-
-$$
-{\mu }_{n}=\sum _{e}{p}_{E,n}(e){\delta }_{{x}_{n}(e)}.
-$$
-
-Here ${\delta }_{x}$ is unit mass at $x$. The question is whether these measures approach uniform length on the fixed segment. Explicitly, do we have
-
-$$
-\sum _{e}{p}_{E,n}(e)f({x}_{n}(e)) \to  {\int }_{0}^{1}f(t,0) dt?
-$$
-
-The limit is required for every bounded continuous function $f$. It combines concentration across the line with uniform occupation along it.
-
-We measure these two features separately. Write $(X,Y)$ for a point sampled from ${\mu }_{n}$. Its transverse spread and longitudinal discrepancy are
-
-$$
-{w}_{n}=\sqrt{{\int }_{{R}^{2}}{y}^{2} d{\mu }_{n}(x,y)},\qquad {D}_{n}=\sup _{t}|\Pr (X \leq  t)-U(t)|.
-$$
-
-Here $U$ is the distribution function of the uniform law on $[0,1]$. The left plot shows transverse spread; the right shows longitudinal discrepancy. The horizontal coordinate is the shell radius: on the large tessellations the radius grows, and the mesh is read at its three sizes.
+Width and longitudinal discrepancy measurements compare the three sizes in each family.
+The horizontal axis is the shell radius used to choose the endpoints.
 
 ```wl
 With[
-  {readouts = Join[
+  { readouts = Map[
+      data |-> Prepend[ lineReadouts[ data[ "Graph" ], Sequence @@ data[ "Endpoints" ] ], data[ "Radius" ] ],
+      Transpose[ lineSubstrates ], { 2 } ] },
+  GraphicsRow[ {
+    ListLinePlot[ readouts[[ All, All, { 1, 2 } ]], PlotRange -> All, PlotMarkers -> Automatic,
+      AxesLabel -> { "r", "w" }, PlotLegends -> { "square", "triangular", "hexagonal", "mesh" } ],
+    ListLinePlot[ readouts[[ All, All, { 1, 3 } ]], PlotRange -> All, PlotMarkers -> Automatic,
+      AxesLabel -> { "r", "D" }, PlotLegends -> { "square", "triangular", "hexagonal", "mesh" } ] },
+    ImageSize -> 1000 ] ]
+```
+
+The width decreases on these meshes, while the longitudinal discrepancy first decreases then rises.
+The meshes are separate discretizations, so endpoints can shift with resolution.
+These finite measurements test the selection procedure but do not establish a limit for fixed endpoints.
+For a nested sequence, one could barycentrically subdivide a fixed triangulated square, retain its inherited coordinates and the same two corners, then ask whether both $w_n$ and $D_n$ tend to zero.
+Refinement alone leaves this unsettled when every new edge still carries unit graph cost.
+
+## Triangles on different substrates
+
+The top row shows large square, cube and sphere meshes; the bottom row shows a square torus, Sierpinski triangle and binary tree.
+Choose two far-apart vertices using successive graph-distance searches, then a third vertex as far as possible from the closer endpoint.
+Three colors display their shortest-path families in the graph's native layout.
+No coordinate alignment enters this construction.
+On a tree, the three sides share branches, so a graph triangle need not resemble a Euclidean triangle.
+
+```wl
+GraphicsGrid[
+  Partition[
     Table[
       With[
-        {g = (SeedRandom[2]; InfraSubstrate[name, "Large"])},
-        {c = First @ GraphCenter[g], xy = AssociationThread[VertexList[g], GraphEmbedding[g]]},
-        Table[
-          With[
-            {shell = Keys @ InfraMeasurement[g, InfraShell[c, r], "VertexDensity"]},
-            {a = First @ shell},
-            {b = First @ MaximalBy[shell, InfraMeasurement[g, InfraSegment[a, #], "Cardinality"] &]},
-            {density = InfraMeasurement[g, InfraSegment[a, b], "EdgeDensity"], u = xy[b] - xy[a]},
-            {masses = Values[density] / Total[density],
-             midpoints = (e |-> {u, Cross[u]} . (Mean @ Lookup[xy, List @@ e] - xy[a]) / (u . u)) /@ Keys[density]},
-            {order = Ordering[midpoints[[All, 1]]]},
-            {cumulative = Accumulate[masses[[order]]], positions = Clip[midpoints[[order, 1]], {0, 1}]},
-            {{r, Sqrt[masses . midpoints[[All, 2]]^2]},
-             {r, Max[Abs[cumulative - positions], Abs[cumulative - masses[[order]] - positions]]}}],
-          {r, 2, Floor[GraphRadius[g]/2]}]],
-      {name, {"SquareTilingGraph", "TriangularTilingGraph", "HexagonalTilingGraph"}}],
-    {Table[
-      With[
-        {g = (SeedRandom[2]; InfraSubstrate["SquareMeshGraph", size])},
-        {c = First @ GraphCenter[g], xy = AssociationThread[VertexList[g], GraphEmbedding[g]], r = Floor[GraphRadius[g]/2]},
-        {shell = Keys @ InfraMeasurement[g, InfraShell[c, r], "VertexDensity"]},
-        {a = First @ shell},
-        {b = First @ MaximalBy[shell, InfraMeasurement[g, InfraSegment[a, #], "Cardinality"] &]},
-        {density = InfraMeasurement[g, InfraSegment[a, b], "EdgeDensity"], u = xy[b] - xy[a]},
-        {masses = Values[density] / Total[density],
-         midpoints = (e |-> {u, Cross[u]} . (Mean @ Lookup[xy, List @@ e] - xy[a]) / (u . u)) /@ Keys[density]},
-        {order = Ordering[midpoints[[All, 1]]]},
-        {cumulative = Accumulate[masses[[order]]], positions = Clip[midpoints[[order, 1]], {0, 1}]},
-        {{r, Sqrt[masses . midpoints[[All, 2]]^2]},
-         {r, Max[Abs[cumulative - positions], Abs[cumulative - masses[[order]] - positions]]}}],
-      {size, {"Small", "Medium", "Large"}}]}]},
-  GraphicsRow[{
-    ListLinePlot[readouts[[All, All, 1]], PlotRange -> All, AxesLabel -> {Text["r"], Text["w"]},
-      PlotLegends -> Text /@ {"square", "triangular", "hexagonal", "mesh"}],
-    ListLinePlot[readouts[[All, All, 2]], PlotRange -> All, AxesLabel -> {Text["r"], Text["D"]},
-      PlotLegends -> Text /@ {"square", "triangular", "hexagonal", "mesh"}]}]]
+        { g = BlockRandom[ InfraSubstrate[ specification[[ 1 ]], "Large" ], RandomSeeding -> 2 ] },
+        { vertices = VertexList[ g ], distances = GraphDistanceMatrix[ g ] },
+        { firstIndex = First @ Ordering[ distances[[ 1 ]], -1 ] },
+        { secondIndex = First @ Ordering[ distances[[ firstIndex ]], -1 ] },
+        { thirdIndex = First @ Ordering[
+            Min /@ Transpose[ distances[[ { firstIndex, secondIndex } ]] ], -1 ] },
+        { a = vertices[[ firstIndex ]], b = vertices[[ secondIndex ]], third = vertices[[ thirdIndex ]] },
+        Labeled[
+          InfraSubstrateHighlight[ g, {
+            InfraSegment[ a, b ] -> StandardBlue,
+            InfraSegment[ b, third ] -> StandardOrange,
+            InfraSegment[ third, a ] -> StandardRed,
+            { a, b, third } -> StandardBlue } ,
+            "ThicknessRange" -> { 1.25, 5 } ],
+          specification[[ 2 ]] ] ],
+      { specification, {
+          { "SquareMeshGraph", "square mesh" }, { "CubeMeshGraph", "cube mesh" },
+          { "SphereMeshGraph", "sphere mesh" }, { "SquareTorusGraph", "square torus" },
+          { "SierpinskiTriangleGraph", "Sierpinski triangle" }, { "BinaryTreeGraph", "binary tree" } } } ],
+    3 ],
+  ImageSize -> 1200 ]
 ```
 
-**Observation.** Transverse spread decreases on every substrate. Longitudinal discrepancy decreases on the square and triangular tessellations and on the mesh; on the hexagonal tessellation both quantities alternate with the parity of the radius. These observations do not establish convergence.
+If three normalized side measures converge in a common ambient space, their equal mixture converges to the mixture of the three limits.
+When those limits are uniform measures on straight segments, each side has mass $1/3$; this equals normalized perimeter length only when the side lengths match.
 
-**Open question.** Do both quantities tend to zero for this embedding procedure, and at what rates? These finite computations do not prove convergence or a power law.
-
-In the barycentric example both quantities decrease, but slowly. Four subdivisions do not decide whether the limit is the straight segment.
-
-## The triangle
-
-Choose a third vertex on the same shell, as far as possible from the nearer endpoint. Keep one common spring-electric embedding for all three sides. A reflection puts the third vertex above the base.
-
-Each side carries its own normalized occupation measure. The colors distinguish the three sides in the medium-size square, triangular and hexagonal substrates.
-
-```wl
-GraphicsRow @ Table[
-  With[
-    {g = (SeedRandom[2]; InfraSubstrate[name, "Medium"])},
-    {c = First @ GraphCenter[g]},
-    {shell = Keys @ InfraMeasurement[g, InfraShell[c, Floor[GraphRadius[g]/2]], "VertexDensity"]},
-    {a = First @ shell},
-    {b = First @ MaximalBy[shell, InfraMeasurement[g, InfraSegment[a, #], "Cardinality"] &]},
-    {third = First @ MaximalBy[shell, Min[GraphDistance[g, #, a], GraphDistance[g, #, b]] &]},
-    {xy = AssociationThread[VertexList[g], GraphEmbedding[g]]},
-    {u = xy[b] - xy[a]},
-    {flip = {1, Sign[Cross[u] . (xy[third] - xy[a])]}},
-    {aligned = (p |-> flip {u, Cross[u]} . (p - xy[a]) / (u . u)) /@ GraphEmbedding[g]},
-    InfraSubstrateHighlight[Graph[g, VertexCoordinates -> aligned],
-      {InfraSegment[a, b], InfraSegment[b, third], InfraSegment[third, a], {a, b, third} -> StandardBlue}]],
-  {name, {"SquareTilingGraph", "TriangularTilingGraph", "HexagonalTilingGraph"}}]
-```
-
-## The triangle as one object
-
-Give each side one third of the total mass:
-
-$$
-{\mu }_{n}^{\triangle }=\frac{1}{3}({\mu }_{n}^{ab}+{\mu }_{n}^{bc}+{\mu }_{n}^{ca}).
-$$
-
-Overlapping sides contribute additively. Normalizing each side before combining them prevents a side with more shortest paths from dominating solely through its path count.
-
-The vertex density of each side is divided by its number of shortest paths, and the three are summed. A vertex is drawn the larger, the more mass it carries.
-
-```wl
-GraphicsRow @ Table[
-  With[
-    {g = (SeedRandom[2]; InfraSubstrate[name, "Medium"])},
-    {c = First @ GraphCenter[g]},
-    {shell = Keys @ InfraMeasurement[g, InfraShell[c, Floor[GraphRadius[g]/2]], "VertexDensity"]},
-    {a = First @ shell},
-    {b = First @ MaximalBy[shell, InfraMeasurement[g, InfraSegment[a, #], "Cardinality"] &]},
-    {third = First @ MaximalBy[shell, Min[GraphDistance[g, #, a], GraphDistance[g, #, b]] &]},
-    {xy = AssociationThread[VertexList[g], GraphEmbedding[g]]},
-    {u = xy[b] - xy[a]},
-    {flip = {1, Sign[Cross[u] . (xy[third] - xy[a])]}},
-    {aligned = (p |-> flip {u, Cross[u]} . (p - xy[a]) / (u . u)) /@ GraphEmbedding[g]},
-    {sides = {InfraSegment[a, b], InfraSegment[b, third], InfraSegment[third, a]}},
-    InfraSubstrateHighlight[Graph[g, VertexCoordinates -> aligned],
-      {Merge[(side |-> InfraMeasurement[g, side, "VertexDensity"] / InfraMeasurement[g, side, "Cardinality"]) /@ sides, Total] -> StandardBlue,
-       {a, b, third} -> StandardBlue}]],
-  {name, {"SquareTilingGraph", "TriangularTilingGraph", "HexagonalTilingGraph"}}]
-```
-
-If all three side measures converge to uniform measures on their limiting straight segments, their average converges to the corresponding triangle measure. This gives equal mass to each side; it equals normalized perimeter length only when the three side lengths agree.
-
-The triangle asks whether several emerging lines fit together in the same drawing. Aligning its base fixes two corners; the position of the third remains an observed part of its shape.
+The grid example shows that occupation can concentrate on Euclidean segments without making graph distances Euclidean.
+[The Metric Tensor](paclet:WolframInstitute/InfraGeometry/tutorial/MetricTensorTutorial) examines this remaining anisotropy.

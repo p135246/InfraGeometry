@@ -10,28 +10,9 @@ RelatedGuides: [InfraFiberBundles]
 RelatedTutorials: [ExperimentalInfraBundles]
 ---
 
-We start with a finite graph and a projection of its vertices.
-Equal fibers, lift existence, unique lifting and bundle structure are separate properties.
-Sections and complete connections add choices to this data.
-
-## Topological language and finite readings
-
-The finite object is a graph with a vertex projection.
-The following dictionary distinguishes its exact conditions from the additional structures of continuous topology.
-
-| Topological notion | Finite infra reading | Qualification |
-|---|---|---|
-| Projection from total space to base | InfraFiberedGraph with InfraTotalSpace, InfraBaseSpace and InfraProjection | The base graph is reconstructed from projected edges; no topology is part of the inert object. |
-| Serre or Hurewicz fibration | InfraFibrationQ asks for a lift of every base edge from every starting vertex | This is weak edge-lift existence, not a homotopy-lifting axiom. |
-| Covering space | InfraCoveringQ gives edgeless fibers and a bijection on vertex neighbourhoods | The graph-covering condition has the usual covering interpretation under graph realization. Sheet counts can differ across base components. |
-| Fiber bundle | InfraFiberBundleQ gives a common fiber graph and adjacency-preserving transverse matchings | This is an edgewise Cartesian graph bundle. Realizing its edges alone does not supply topological product charts or filled squares. |
-| Section | InfraSection chooses a right inverse on a base domain | InfraContinuousSectionQ asks for adjacency preservation on that domain. |
-| Connection and parallel transport | InfraConnection selects complete fiber matchings; transport composes them | This is finite bijective transport. Preserving a fiber graph is an additional condition. |
-| Infra-only transverse local conditions | InfraAtMostOneEdgeLiftQ and InfraFibrationQ read injectivity and surjectivity on transverse neighbours | Vertical neighbours are excluded; the conditions do not assert local injectivity or surjectivity in a chosen topology. |
-| Infra-only multiplicity and equitable partition | InfraEdgeLiftMultiplicity counts transverse neighbours, including zeros | Constancy within each fiber is transverse equitability; full equitability also needs constant vertical degree. |
-
-For the continuous definitions, see [Hatcher, Algebraic Topology, Sections 1.3 and 4.2](https://pi.math.cornell.edu/~hatcher/AT/AT.pdf).
-The finite definitions and their implications are developed below.
+We extract fibers, transport and global twisting from a graph and a vertex projection.
+The projection specifies observed positions; the vertices above each position are its internal states.
+We compare bundles over regular and irregular substrates, then follow a twisted covering through several resolutions.
 
 ## Setup
 
@@ -43,266 +24,241 @@ Needs[ "WolframInstitute`InfraGeometry`" ]
 
 A *fibered graph* consists of a finite simple undirected unweighted untagged graph $E$ and a map $\pi$ on its vertices.
 The *base graph* $B$ has vertex set $\pi(V(E))$.
-Distinct base vertices are adjacent exactly when some total edge joins their preimages.
+Two distinct base vertices are adjacent when a total edge joins their preimages.
 The *fiber* $F_p$ is the induced graph on $\pi^{-1}(p)$.
-A total edge is *vertical* when both endpoints project to the same vertex, and *transverse* otherwise.
+Edges within a fiber are *vertical*; edges between fibers are *transverse*.
 
-The object carries no drawing, connection or lifting axiom.
-The base includes isolated projection values, and projection collapses vertical edges.
-The empty graph with empty projection is allowed.
+[InfraFiberedGraph]() stores the total graph and projection.
+[InfraTotalSpace](), [InfraBaseSpace]() and [InfraProjection]() recover these data, and [InfraFiber]() selects a fiber.
+The projection can be a function or an association.
 
-| Object or reading | Interface |
-|---|---|
-| Inert total graph and projection | InfraFiberedGraph[total, projection] |
-| Total graph | InfraTotalSpace[fib] |
-| Reconstructed base graph | InfraBaseSpace[fib] |
-| Projection association | InfraProjection[fib] |
-| One induced fiber; all induced fibers | InfraFiber[fib,p]; InfraFibers[fib] |
-| Supported fibered graph | InfraFiberedGraphQ[fib] |
-
-The projection may be an association or a function.
-Association keys are literal total vertices; lists are allowed as individual labels.
-
-A cycle wraps twice around its reconstructed square base.
-The marked vertices form one fiber.
+The rows compare a square grid, a triangular tiling and an irregular square mesh.
+Every base point carries the same four-cycle of internal states.
+Each row shows the total graph with upright fibers on the left and its base on the right.
+The marked fiber projects to an intrinsically chosen graph centre.
+Here the product construction supplies the bundle.
+Each substrate uses the same four-cycle fiber and transports each internal state to the identically labeled state above every neighbour.
 
 ```wl
-SeedRandom[ 7 ];
-With[ { fib = InfraFiberedGraph[ CycleGraph[ 8 ], vertex |-> Mod[ vertex, 4, 1 ] ] },
-  GraphicsRow[ { InfraFiberedGraphHighlight[ fib, { InfraFiber[ fib, 1 ] } ],
-    InfraTotalSpace[ fib ], InfraBaseSpace[ fib ] } ] ]
+GraphicsGrid[ Map[ name |-> With[
+  { base = BlockRandom[ InfraSubstrate[ name, "Medium", "KeepCoordinates" -> True ], RandomSeeding -> 2 ] },
+  { fib = InfraFiberedGraph[ GraphProduct[ base, CycleGraph[ 4 ], "Cartesian" ], First ],
+    point = First @ GraphCenter[ base ] },
+  { Show[ InfraFiberedGraphHighlight[ fib, { InfraFiber[ fib, point ] }, Method -> "3DFiber", VertexLabels -> None ,
+    "ThicknessRange" -> { 1.25, 5 } ], BoxRatios -> { 1, 1, .02 } ],
+    InfraSubstrateHighlight[ base, { point }, VertexLabels -> None ,
+      "ThicknessRange" -> { 1.25, 5 } ] } ],
+  { "SquareGridGraph", "TriangularTilingGraph", "SquareMeshGraph" } ], ImageSize -> 1100 ]
 ```
 
-## Local multiplicity and structural properties
+## When does the projection give a bundle?
 
-For a total vertex $x$ over $p$ and a neighbour $q$ of $p$, define the *edge-lift multiplicity*
+For a total vertex $x$ above $p$ and a base neighbour $q$, the *edge-lift multiplicity* is
 
 $$
 m(x,q)=|\{y\in V(F_q):\{x,y\}\in E(E)\}|.
 $$
 
-The multiplicity reader returns an association from each total vertex to an association of adjacent base vertices and their counts.
-Zero counts record missing lifts.
-Vertical neighbours are excluded.
-A total vertex over an isolated base vertex has an empty inner association.
+[InfraEdgeLiftMultiplicity]() records these counts, including zeros.
+Vertical neighbours do not enter the count.
 
-| Condition | Finite meaning | Reader |
-|---|---|---|
-| Weak graph continuity | Every total edge projects to a base edge or a vertex; automatic for the reconstructed base | InfraFiberedGraphQ |
-| Equal fiber sizes | Every fiber has the same cardinality, including across base components | InfraEqualFiberSizesQ |
-| Isomorphic fibers | All induced fiber graphs are mutually isomorphic | InfraIsomorphicFibersQ |
-| Local surjectivity on transverse neighbours | Every multiplicity is positive; the project's weak fibration condition | InfraFibrationQ |
-| Local injectivity on transverse neighbours | Every multiplicity is at most one | InfraAtMostOneEdgeLiftQ |
-| Unique edge lifting | Every multiplicity is one | InfraUniqueEdgeLiftingQ |
-| Graph bundle | Isomorphic fibers and unique lifts whose matchings preserve vertical adjacency | InfraFiberBundleQ |
-| Graph covering | Unique edge lifting and no vertical edges | InfraCoveringQ |
-| Transverse equitable multiplicity | For each base vertex, the inner multiplicity association is constant throughout its fiber | Read with InfraEdgeLiftMultiplicity |
+Positive multiplicities give weak edge lifting, tested by [InfraFibrationQ]().
+Multiplicities at most one give [InfraAtMostOneEdgeLiftQ](), and multiplicities exactly one give [InfraUniqueEdgeLiftingQ]().
+A covering has unique lifts and edgeless fibers.
+A graph bundle has isomorphic fibers and unique lifts that preserve vertical adjacency.
 
-The last row is a condition one can read from the existing measurement; it adds no predicate.
-A full equitable partition also requires constant vertical degree within each fiber.
-The local injectivity and surjectivity rows concern transverse neighbours only.
-They are exact finite conditions, without a chosen topology on the vertices.
+Unique lifting makes the edges above each base edge a perfect matching.
+Every vertex on either side has exactly one partner, so fiber sizes match along the edge and hence throughout each connected base component.
+A covering over a connected base is therefore a bundle with a discrete fiber.
+Different base components may have different sheet counts.
 
-Here one transverse edge reconstructs a base edge, but two total vertices have no lift of it.
+Constancy of the multiplicities within each fiber is transverse equitability.
+Full equitability also requires constant vertical degree within each fiber.
+
+The three pictures have the same two six-point fibers.
+On the left, one point in each fiber has no lift.
+In the middle, every point has several possible lifts.
+On the right, the transverse edges form a perfect matching.
+Equal fiber sizes alone do not distinguish these cases.
 
 ```wl
-SeedRandom[ 7 ];
-With[ { fib = InfraFiberedGraph[ Graph[ Range[ 4 ], { UndirectedEdge[ 1, 3 ] } ],
-    <| 1 -> "p", 2 -> "p", 3 -> "q", 4 -> "q" |> ] },
-  { InfraFiberedGraphHighlight[ fib ], InfraEdgeLiftMultiplicity[ fib ] } ]
+With[ { matching = UndirectedEdge @@@ Transpose[ { Range[ 6 ], Range[ 7, 12 ] } ],
+    complete = UndirectedEdge @@@ Tuples[ { Range[ 6 ], Range[ 7, 12 ] } ],
+    coordinates = Join[ Table[ { 0, index }, { index, 6 } ], Table[ { 2, index }, { index, 6 } ] ] },
+  GraphicsRow[ Map[ edges |-> InfraFiberedGraphHighlight[
+    InfraFiberedGraph[ Graph[ Range[ 12 ], edges ], vertex |-> Ceiling[ vertex / 6 ] ],
+    Method -> "HighlightFiber", VertexCoordinates -> coordinates, VertexLabels -> None ,
+    "ThicknessRange" -> { 1.25, 5 } ],
+    { Most[ matching ], complete, matching } ], ImageSize -> 900 ] ]
 ```
 
-Lift existence and at-most-one lifting together give unique lifting.
-Over a base edge, unique lifting gives a perfect matching: every vertex on either side has degree one.
-Consequently, fiber sizes agree within each connected base component.
-They need not agree between components.
+For generated examples, [RandomInfraFiberedGraph]() accepts explicit properties such as `Properties -> { "FiberBundle" }`.
+Its reference page gives the size and edge-count options.
 
-Isomorphic fibers imply equal sizes, but impose no transverse-edge condition.
-A covering over a connected base is a bundle with a discrete fiber.
-A covering on a disconnected base may have different sheet counts and then lacks one common fiber.
+## Connections and sections
 
-These predicates treat the empty fibered graph vacuously.
-A nonempty list of objects is tested by conjunction; an empty list gives False.
-Malformed projections, unsupported graph domains and unknown construction heads remain unevaluated.
-Supported Experimental models have explicit predicate methods that materialize once; converting them to a literal object by hand is optional.
+A *complete connection* selects a perfect matching above every base edge, using transverse edges of the total graph.
+These matchings transport fiber vertices bijectively.
+[InfraHorizontalLift]() composes them along a base walk from a chosen starting vertex, and [InfraParallelTransport]() records all resulting endpoints.
+Preserving the vertical fiber graph is an additional requirement on the matchings.
+If the fibers are isomorphic and the matchings preserve adjacency, the vertical and selected transverse edges form a graph bundle.
 
-## Generate a prescribed class
-
-The generator retains every vertex and edge of the supplied base in the reconstructed base.
-Its default property list requests general fibered graphs.
-Properties are a flat conjunction of the conditions named in the symbol reference.
-
-| Count specification | Meaning |
-|---|---|
-| n | An upper bound; the minimum is one for fiber vertices and zero for vertical edges |
-| {n} | Exactly n |
-| {lo,hi} | A discrete uniform integer from lo through hi |
-| Automatic, for horizontal edges | A count feasible for the requested properties |
-| All, for horizontal edges | The complete join, when compatible with the requested properties |
-
-Scalar edge caps intersect the property-feasible interval.
-Exact counts and ranges must fit every permitted fiber size; they are never clipped.
-Count draws are uniform on their admissible interval; graph samples are not asserted uniform.
-See [RandomInfraFiberedGraph]() for the joint size and edge-count constraints.
-
-The first graph has independent fiber sizes.
-The second has isomorphic fibers and lift existence.
-The third is a graph bundle.
+Weak lifting does not ensure that such a connection exists.
+For two three-point fibers, take transverse edges $x_1y_1,x_2y_1,x_3y_2,x_3y_3$.
+Every endpoint has a neighbour, but $x_1$ and $x_2$ cannot both receive distinct partners.
+The left picture marks these two states in blue and their only possible partner in orange.
+On the right, adding the edge $x_2y_2$ allows a complete matching, drawn in blue.
+The other available edges remain gray.
 
 ```wl
-SeedRandom[ 7 ];
-With[ { base = CycleGraph[ 6 ] },
-  GraphicsRow[ InfraFiberedGraphHighlight /@ {
-    RandomInfraFiberedGraph[ base, "VerticalVertexCount" -> { 2, 4 }, "VerticalEdgeCount" -> 2, RandomSeeding -> 7 ],
-    RandomInfraFiberedGraph[ base, Properties -> { "IsomorphicFibers", "Fibration" },
-      "VerticalVertexCount" -> { 3 }, "VerticalEdgeCount" -> { 2 }, RandomSeeding -> 7 ],
-    RandomInfraFiberedGraph[ base, Properties -> { "FiberBundle" },
-      "VerticalVertexCount" -> { 3 }, "VerticalEdgeCount" -> { 2 }, RandomSeeding -> 7 ] } ] ]
+With[ { edges = UndirectedEdge @@@ { { 1, 4 }, { 2, 4 }, { 3, 5 }, { 3, 6 } },
+    coordinates = { { 0, 2 }, { 0, 1 }, { 0, 0 }, { 2, 2 }, { 2, 1 }, { 2, 0 } },
+    labels = Thread[ Range[ 6 ] -> { "x1", "x2", "x3", "y1", "y2", "y3" } ] },
+  GraphicsRow[ {
+    InfraFiberedGraphHighlight[
+      InfraFiberedGraph[ Graph[ Range[ 6 ], edges ], vertex |-> Ceiling[ vertex / 3 ] ],
+      { Style[ { 1, 2 }, StandardBlue ], Style[ 4, StandardOrange ] },
+      Method -> "HighlightFiber", VertexCoordinates -> coordinates, VertexLabels -> labels,
+      EdgeStyle -> GrayLevel[ .7 ], PlotLabel -> "Lifts exist, but no connection",
+      "ThicknessRange" -> { 1.25, 5 } ],
+    InfraFiberedGraphHighlight[
+      InfraFiberedGraph[ Graph[ Range[ 6 ], Append[ edges, UndirectedEdge[ 2, 5 ] ] ],
+        vertex |-> Ceiling[ vertex / 3 ] ],
+      Style[ InfraConnection[ UndirectedEdge @@@ { { 1, 4 }, { 2, 5 }, { 3, 6 } } ],
+        StandardBlue, AbsoluteThickness[ 3 ] ],
+      Method -> "HighlightFiber", VertexCoordinates -> coordinates, VertexLabels -> labels,
+      EdgeStyle -> GrayLevel[ .7 ], PlotLabel -> "One added edge permits transport",
+      "ThicknessRange" -> { 1.25, 5 } ] }, ImageSize -> 900 ] ]
 ```
 
-## Sections and extensions
+The obstruction concerns a set of states, not any single state: distinct partners for a set require at least as many neighbours as there are states in the set.
+Here two states have only one neighbour.
 
-A *section on a domain* chooses one total vertex over each base vertex in that domain.
-It is *continuous* when every base edge within the domain maps to a total edge.
-A partial section fixes values to be preserved by an extension.
+A *section* chooses one total vertex above each base vertex in its domain.
+It is continuous when adjacent base vertices receive adjacent choices.
+[RandomInfraSection]() samples or extends sections; use `Properties -> { "Continuous" }` to require this condition.
+[RandomInfraConnection]() samples complete connections.
 
-The default section class is set-theoretic on every overload.
-A domain list restricts the target; an inert section supplies prescribed values and requests extension over the whole base.
-The continuous property is requested explicitly.
-
-Complete joins let a partial section extend continuously in every choice of the remaining fibers.
+The same three substrates distinguish selecting a state from transporting states.
+On the left, a continuous section selects one sheet of the product.
+On the right, the connection transports all four internal states along the base edges.
+The product labels make both constructions possible on the irregular mesh as well as on the regular grids.
 
 ```wl
-SeedRandom[ 7 ];
-With[ { fib = RandomInfraFiberedGraph[ CycleGraph[ 6 ],
-    "VerticalVertexCount" -> { 3 }, "HorizontalEdgeCount" -> All, RandomSeeding -> 7 ] },
-  { partial = RandomInfraSection[ fib, { 1, 3 }, RandomSeeding -> 7 ] },
-  { section = RandomInfraSection[ fib, partial, Properties -> { "Continuous" }, RandomSeeding -> 7 ] },
-  InfraFiberedGraphHighlight[ fib, { partial, section } ] ]
+GraphicsGrid[ Map[ name |-> With[
+  { base = BlockRandom[ InfraSubstrate[ name, "Medium", "KeepCoordinates" -> True ], RandomSeeding -> 2 ] },
+  { fib = InfraFiberedGraph[ GraphProduct[ base, CycleGraph[ 4 ], "Cartesian" ], First ] },
+  { section = InfraSection[ AssociationMap[ point |-> { point, 1 }, VertexList[ base ] ] ],
+    connection = InfraConnection[ Select[ EdgeList[ InfraTotalSpace[ fib ] ],
+      edge |-> First[ First[ edge ] ] =!= First[ Last[ edge ] ] ] ] },
+  { Show[ InfraFiberedGraphHighlight[ fib, Style[ section, StandardBlue, AbsoluteThickness[ 2.5 ] ],
+      Method -> "3DFiber", VertexLabels -> None, EdgeStyle -> GrayLevel[ .7 ] ,
+    "ThicknessRange" -> { 1.25, 5 } ], BoxRatios -> { 1, 1, .02 } ],
+    Show[ InfraFiberedGraphHighlight[ fib, Style[ connection, StandardOrange ],
+      Method -> "3DFiber", VertexLabels -> None, EdgeStyle -> GrayLevel[ .7 ] ,
+      "ThicknessRange" -> { 1.25, 5 } ], BoxRatios -> { 1, 1, .02 } ] } ],
+  { "SquareGridGraph", "TriangularTilingGraph", "SquareMeshGraph" } ], ImageSize -> 1100 ]
 ```
-
-Section and connection samplers return one object by default.
-An integer result count requests exactly that many distinct objects, a capped count requests at most that many, and All enumerates the class.
-An exact shortage gives an empty result list.
-These result counts are distinct from the vertex and edge count specifications above.
-
-The external random seed controls bounded random searches.
-Identity ordering and default complete enumeration are deterministic.
-A pruning callback restricts the searched class, so a shortage under that callback need not mean mathematical nonexistence.
-
-## Complete connections and horizontal lifts
-
-A *complete connection* selects a perfect matching between the whole fibers over every base edge, using transverse total edges.
-It selects no vertical edges.
-A matching transports fiber vertices bijectively, but need not preserve vertical adjacency.
-
-Lift existence alone does not supply a complete connection.
-In this example every total vertex has a transverse neighbour, but the first two vertices of one fiber share only one possible target.
-No perfect matching can use distinct targets for both.
-
-```wl
-SeedRandom[ 7 ];
-With[ { fib = InfraFiberedGraph[ Graph[ Range[ 6 ],
-    UndirectedEdge @@@ { { 1, 4 }, { 2, 4 }, { 3, 5 }, { 3, 6 } } ],
-    <| 1 -> "p", 2 -> "p", 3 -> "p", 4 -> "q", 5 -> "q", 6 -> "q" |> ] },
-  { InfraFiberedGraphHighlight[ fib ], RandomInfraConnection[ fib, All ] } ]
-```
-
-A complete connection lifts each base walk uniquely after a starting total vertex is chosen.
-The result is an ordered vertex list, including repeated visits.
-Parallel transport records its endpoint for every start in the initial fiber.
-
-The selected connection below determines the highlighted lift.
-
-```wl
-SeedRandom[ 7 ];
-With[ { fib = RandomInfraFiberedGraph[ CycleGraph[ 6 ],
-    "VerticalVertexCount" -> { 3 }, "HorizontalEdgeCount" -> All, RandomSeeding -> 7 ] },
-  { connection = RandomInfraConnection[ fib, RandomSeeding -> 7 ] },
-  { start = First @ VertexList @ InfraFiber[ fib, 1 ] },
-  { lift = InfraHorizontalLift[ fib, connection, start, { 1, 2, 3, 4, 5, 6, 1 } ] },
-  InfraFiberedGraphHighlight[ fib, { connection, InfraWalk[ lift ] } ] ]
-```
-
-If all fibers are mutually isomorphic and the selected matchings preserve their adjacency, the vertical edges and selected transverse edges form a graph bundle.
-A raw fibered graph may contain additional transverse edges, so this statement concerns the selected subgraph.
 
 ## Twisting and holonomy
 
-The *holonomy* of a closed base walk is the permutation produced by transport around it.
-Permutation positions refer to the vertex order of the starting fiber.
-A one-vertex loop gives the identity.
-
-A graph bundle can be twisted.
-Both graphs below cover the same square with two points per fiber.
-The product has two horizontal leaves; the connected double cover exchanges the two points after one base circuit.
+The *holonomy* of a closed base walk is its transport permutation of the starting fiber.
+The product on the left and the twisted cover on the right have the same sixteen-cycle base and two-point fibers.
+The colored walks lift one base circuit from the two states above vertex 1.
+Below each covering, arrows run from a copy of the starting fiber on the left to its endpoint fiber on the right.
 
 ```wl
-SeedRandom[ 7 ];
-With[ { product = InfraFiberedGraph[ GraphProduct[ CycleGraph[ 4 ], Graph[ { 1, 2 }, { } ], "Cartesian" ], First ],
-    twisted = InfraFiberedGraph[ CycleGraph[ 8 ], vertex |-> Mod[ vertex, 4, 1 ] ] },
-  GraphicsRow[ Map[ fib |-> With[ { connection = InfraConnection[ EdgeList @ InfraTotalSpace[ fib ] ] },
-    InfraFiberedGraphHighlight[ fib, connection ] ], { product, twisted } ] ] ]
+With[ { product = InfraFiberedGraph[
+    GraphProduct[ CycleGraph[ 16 ], Graph[ { 1, 2 }, { } ], "Cartesian" ], First ],
+    twisted = InfraFiberedGraph[ CycleGraph[ 32 ], vertex |-> Mod[ vertex, 16, 1 ] ] },
+  GraphicsGrid[ Transpose[ Map[ fib |-> With[
+    { connection = InfraConnection[ EdgeList[ InfraTotalSpace[ fib ] ] ],
+      fiber = VertexList[ InfraFiber[ fib, 1 ] ], loop = Append[ Range[ 16 ], 1 ] },
+    { lifts = Map[ start |-> InfraHorizontalLift[ fib, connection, start, loop ], fiber ],
+      permutation = PermutationList[ InfraHolonomy[ fib, connection, loop ], 2 ] },
+    { InfraFiberedGraphHighlight[ fib,
+        MapThread[ { lift, color } |-> Style[ InfraWalk[ lift ], color ], { lifts, { StandardBlue, StandardOrange } } ],
+        "BaseGraphLayout" -> "CircularEmbedding", VertexLabels -> None ,
+      "ThicknessRange" -> { 1.25, 5 } ],
+      Graph[ Tuples[ { { 0, 1 }, { 1, 2 } } ],
+        MapThread[ { state, endpoint } |-> DirectedEdge[ { 0, state }, { 1, endpoint } ],
+          { Range[ 2 ], permutation } ],
+        VertexCoordinates -> { { 0, 1 }, { 0, 0 }, { 2, 1 }, { 2, 0 } },
+        VertexStyle -> { { 0, 1 } -> StandardBlue, { 1, 1 } -> StandardBlue,
+          { 0, 2 } -> StandardOrange, { 1, 2 } -> StandardOrange }, VertexLabels -> None, VertexSize -> .12 ] } ],
+    { product, twisted } ] ], ImageSize -> 1000 ] ]
 ```
 
-The exchange is a transposition in the starting fiber.
+In the product, each lift closes on its initial state.
+In the twisted cover, the lift from vertex 1 ends at vertex 17, and the other lift returns from 17 to 1.
+Thus one base circuit exchanges the two states.
+[InfraHolonomy]() computes this transposition.
+
+This exchange prevents a continuous section over the whole base: successive adjacency choices force a return to the other state.
+The product has two continuous sections, one on each horizontal cycle.
+
+More generally, a covering of a connected base has a continuous section exactly when some state in one fiber is fixed by every closed-walk transport based there.
+A section supplies such a state because every lifted circuit must return to its chosen vertex.
+Conversely, transport a common fixed state to each base point along any path.
+Two paths give the same endpoint: following one and reversing the other gives a closed walk that fixes the starting state.
+For a base edge, choose the path to its second endpoint through its first endpoint.
+Its last lifted edge joins the chosen states, so these path-independent choices form a continuous section.
+Thus a nonidentity holonomy obstructs a section only when the holonomy permutations have no common fixed state.
+
+[InfraTrivialMonodromyQ]() tests whether every closed base walk has identity transport.
+Equivalently, each horizontal connected component contains at most one vertex above each base vertex.
+Two such vertices in one component give a lifted closed walk with different endpoints, and every such walk gives two such vertices.
+
+## The same cover at coarser resolutions
+
+Take the double cover $C_{128}\to C_{64}$ and group consecutive vertices into blocks of size $b=1,4,16$.
+Apply the same blocking to the total and base cycles.
+Across the top row, the same lifted base circuit is drawn over progressively coarser bases.
+The bottom row draws each total cycle in its own layout, making the two endpoints of the lifted circuit visible.
 
 ```wl
-SeedRandom[ 7 ];
-With[ { fib = InfraFiberedGraph[ CycleGraph[ 8 ], vertex |-> Mod[ vertex, 4, 1 ] ] },
-  { connection = InfraConnection[ EdgeList @ InfraTotalSpace[ fib ] ] },
-  InfraHolonomy[ fib, connection, { 1, 2, 3, 4, 1 } ] ]
+With[ { total = CycleGraph[ 128 ] },
+  GraphicsGrid[ Transpose[ Map[ block |-> With[
+    { coarseTotal = InfraBaseSpace[ InfraFiberedGraph[ total, vertex |-> Ceiling[ vertex / block ] ] ],
+      baseSize = 64 / block },
+    { fib = InfraFiberedGraph[ coarseTotal, vertex |-> Mod[ vertex, baseSize, 1 ] ] },
+    { connection = InfraConnection[ EdgeList[ coarseTotal ] ] },
+    { lift = InfraHorizontalLift[ fib, connection, 1, Append[ Range[ baseSize ], 1 ] ] },
+    { highlights = { Style[ InfraWalk[ lift ], StandardBlue, AbsoluteThickness[ 2.5 ] ],
+        Style[ InfraFiber[ fib, 1 ], StandardOrange ] } },
+    { InfraFiberedGraphHighlight[ fib, highlights, "BaseGraphLayout" -> "CircularEmbedding",
+        VertexLabels -> None, EdgeStyle -> GrayLevel[ .7 ] ,
+      "ThicknessRange" -> { 1.25, 5 } ],
+      InfraSubstrateHighlight[ Graph[ coarseTotal, GraphLayout -> "CircularEmbedding",
+        VertexStyle -> GrayLevel[ .7 ], EdgeStyle -> GrayLevel[ .7 ] ], highlights,
+        VertexLabels -> None ,
+        "ThicknessRange" -> { 1.25, 5 } ] } ], { 1, 4, 16 } ] ], ImageSize -> 1000 ] ]
 ```
 
-[InfraTrivialMonodromyQ]() tests *trivial global monodromy*: every closed base walk acts identically.
-This is equivalent to every horizontal leaf projecting injectively.
-Indeed, two vertices in one leaf over the same base vertex give a lifted closed walk between them.
-Conversely, a closed walk with distinct lift endpoints places two such vertices in one leaf.
+At every resolution the blue walk joins the two orange states in the starting fiber.
+The twist survives blocking.
+This follows from an exact rule, beyond these three illustrations.
+For $b\mid n$ with $n/b\geq3$, write $\pi_n:C_{2n}\to C_n$ for reduction of vertex labels modulo $n$, using labels $1,\ldots,n$.
+The block maps $\alpha_b(v)=\lceil v/b\rceil$ and $\beta_b(p)=\lceil p/b\rceil$ satisfy
 
-Curvature needs a specified family of faces and their boundary loops.
-A graph alone supplies no such family.
-The global monodromy predicate therefore does not replace a face-based curvature definition.
+$$
+\pi_{n/b}\circ\alpha_b=\beta_b\circ\pi_n.
+$$
 
-## Three views of one object
+Edges within a block collapse, and edges between successive blocks form the smaller cycles.
+A circuit of the smaller base still lifts through half its total cycle and exchanges the two states.
+Assigning each coarse edge $b$ times the original length also keeps the base circumference fixed.
+Thus this family has an explicit renormalization rule preserving covering degree and monodromy.
 
-Circular fibers, upright three-dimensional fibers and the total graph's own layout display the same finite object.
-Highlights preserve their meaning in every view.
+## Scope and further examples
 
-```wl
-SeedRandom[ 7 ];
-With[ { fib = RandomInfraFiberedGraph[ CycleGraph[ 6 ],
-    "VerticalVertexCount" -> { 3 }, "HorizontalEdgeCount" -> All, RandomSeeding -> 7 ] },
-  { section = RandomInfraSection[ fib, Properties -> { "Continuous" }, RandomSeeding -> 7 ],
-    connection = RandomInfraConnection[ fib, RandomSeeding -> 7 ] },
-  GraphicsRow[ Map[ method |-> InfraFiberedGraphHighlight[ fib, { section, connection }, Method -> method ],
-    { "CircularFiber", "3DFiber", "HighlightFiber" } ] ] ]
-```
+The bundle predicate uses the Cartesian graph-bundle convention: above a base edge the graph is the Cartesian product of that edge with the common fiber.
+This permits global twisting; see [Algorithm for recognizing Cartesian graph bundles, Section 2](https://www.sciencedirect.com/science/article/pii/S0166218X01002967).
+Topological bundles require local product charts, while the weak fibration predicate here asks only for edge lifts; see [Hatcher, Algebraic Topology, Section 4.2, pp. 376–377](https://pi.math.cornell.edu/~hatcher/AT/AT.pdf).
+Curvature requires a specified family of faces or loops in addition to the graph.
 
-The viewer fixes the structure and layout when created.
-Hovering a base vertex inspects its fiber; hovering a base edge inspects supplied section and connection edges above it.
-Live hovering requires the notebook front end.
+[Experimental Infra Bundles](paclet:WolframInstitute/InfraGeometry/tutorial/ExperimentalInfraBundles) constructs direction fibers from geodesic rays and tests their emergence across observation scales.
+The exact blocking rule above concerns this cycle family; other observation rules need their own compatibility checks.
 
-```wl
-SeedRandom[ 7 ];
-With[ { fib = RandomInfraFiberedGraph[ CycleGraph[ 6 ],
-    "VerticalVertexCount" -> { 2 }, "HorizontalEdgeCount" -> All, RandomSeeding -> 7 ] },
-  { connection = RandomInfraConnection[ fib, RandomSeeding -> 7 ] },
-  InfraFiberedGraphViewer[ fib, connection ] ]
-```
-
-## Relation to bundle terminology
-
-The graph-bundle condition is edgewise: the preimage of each base edge is its Cartesian product with the common fiber, respecting the projection.
-This is the Cartesian graph-bundle convention in the graph literature; it permits global twisting.
-See [Algorithm for recognizing Cartesian graph bundles](https://www.sciencedirect.com/science/article/pii/S0166218X01002967).
-
-A topological fiber bundle instead requires product charts over open neighbourhoods.
-Topological covering spaces have unique path lifting; a covering over a disconnected base can have different sheet counts.
-These are separate statements about topological spaces, as in [Hatcher, Algebraic Topology, Sections 1.3 and 4.2](https://pi.math.cornell.edu/~hatcher/AT/AT.pdf).
-The finite predicates here assert neither Serre nor Hurewicz homotopy lifting.
-
-The broad object and separate predicates follow the April 2026 Meeting 1 notes of Pavel Hajek, Ioana Milea and Stephen Wolfram, unpublished.
-Ioana Milea's one-page Fibered Graph Gauge Theory Basics motivates fiber automorphisms and permutation holonomy.
-A matching of sets becomes a fiber-graph isomorphism only when it also preserves vertical adjacency.
-
-Particular geometric models and scale or completion questions are treated in [Experimental Infra Bundles](paclet:WolframInstitute/InfraGeometry/tutorial/ExperimentalInfraBundles).
+The original tutorial credits the broad object and separate predicates to the April 2026 Meeting 1 notes of Pavel Hajek, Ioana Milea and Stephen Wolfram, unpublished.
+It credits fiber automorphisms and permutation holonomy to Ioana Milea's one-page Fibered Graph Gauge Theory Basics.

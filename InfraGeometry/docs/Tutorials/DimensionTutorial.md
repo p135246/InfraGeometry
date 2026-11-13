@@ -10,17 +10,30 @@ RelatedGuides: [InfraTopology, RiemannianInfrageometry]
 RelatedTutorials: [VolumeMeasurementTutorial]
 ---
 
-- Dimension describes how a region grows when its scale grows. We read it from vertex volumes and ball covers.
-- The graph distance supplies the scale. The drawing supplies no measurement.
-- These are readings over finite windows. The lattice scale, the boundary and the shape of the balls can bias them.
+Can the same dimension be read from counting vertices and from covering them with larger graph balls?
+We compare these measurements across a range of graph distances.
+The drawing supplies no measurement.
 
-## Setup
+## Growth and scale
+
+Write $B_s(c)=\{v:d(c,v)\le s\}$ and $V(s)=|B_s(c)|$.
+A power law $V(s)\sim Cs^d$ gives $V(\lambda s)/V(s)\to\lambda^d$ at each fixed $\lambda>0$.
+Scaling lengths by $\lambda$ scales volume by $\lambda^d$.
+This is the scale comparison we test.
+A finite graph provides only a window between its individual layers and its boundary.
 
 ```wl
 Needs[ "WolframInstitute`InfraGeometry`" ]
 ```
 
-The plane mesh, square tiling and Sierpinski triangle use the large roster size; the Menger carpet uses medium. The reference dimensions of the fractals come from their self-similar pieces and scale factors. The carpet is planar; its reference is not the dimension of the Menger sponge.
+The mesh and regular tilings have reference growth dimension two.
+The Sierpinski triangle has three half-sized copies, giving $d=\log 3/\log 2$.
+The planar Menger carpet has eight third-sized copies, giving $d=\log 8/\log 3$.
+These are reference dimensions of the limiting constructions; the graphs below are finite approximations.
+The carpet uses three construction steps to keep the covering calculations practical.
+Three unfilled gray contours show convex envelopes of balls at roughly one third, two thirds and the full target radius.
+The target radius is four fifths of the graph radius, rounded down.
+The contours show growth in the drawing; the balls themselves are defined by graph distance.
 
 ```wl
 SeedRandom[ 2 ];
@@ -31,305 +44,238 @@ dimensionSubstrates = Apply[
     <| "Name" -> name, "Graph" -> graph, "Centre" -> centre, "Radius" -> radius,
       "Reference" -> reference |> ],
   { { "SquareMeshGraph", "Large", 2 }, { "SquareTilingGraph", "Large", 2 },
+    { "TriangularTilingGraph", "Large", 2 }, { "HexagonalTilingGraph", "Large", 2 },
     { "SierpinskiTriangleGraph", "Large", Log[ 3 ] / Log[ 2 ] },
     { "MengerCarpetGraph", "Medium", Log[ 8 ] / Log[ 3 ] } }, { 1 } ];
-GraphicsGrid[ Partition[
-  Map[ data |-> Labeled[ data[ "Graph" ], data[ "Name" ] ], dimensionSubstrates ], 2 ] ]
-```
-
-## Volume growth
-
-- Write $V(s)=|B_s(c)|$ for the number of vertices in the closed ball about a centre.
-- If $V(s)$ is proportional to $s^d$, its log-log slope is $d$.
-- [LogDifferenceQuotients]() reads successive slopes. [DimensionCurvatureFit]() fits their dimension and curvature over a chosen window; [VolumeGrowthObservables]() chooses a window for the Riemannian probes.
-
-The growth dimension once, on the plane mesh: the quotients and the fitted curve. Small radii see individual layers; large radii see the boundary. The fit is a reading over the selected window.
-
-```wl
-SeedRandom[ 2 ];
-With[
-  { graph = dimensionSubstrates[[ 1 ]][ "Graph" ], centre = dimensionSubstrates[[ 1 ]][ "Centre" ] },
-  { observables = VolumeGrowthObservables[ graph, centre, "Measure" -> "CountingMeasure" ] },
-  { window = observables[ "BallWindow" ], quotients = observables[ "BallLogDifferenceQuotients" ] },
-  { points = Table[ { r, quotients[[ r ]] }, { r, window[[ 1 ]], window[[ 2 ]] } ] },
-  { fit = DimensionCurvatureFit[ points ] },
-  Column[ {
-    Show[
-      ListPlot[ points, AxesLabel -> { "r", "q" }, PlotRange -> All ],
-      Plot[ fit[ "Dimension" ] - fit[ "ScalarCurvature" ] r ( r + 1 ) / ( 3 ( fit[ "Dimension" ] + 2 ) ),
-        { r, window[[ 1 ]], window[[ 2 ]] } ] ],
-    fit } ] ]
+GraphicsGrid[ Partition[ Map[
+  data |-> With[
+    { graph = data[ "Graph" ], centre = data[ "Centre" ], radius = data[ "Radius" ] },
+    { balls = Map[ r |-> Keys @ InfraMeasurement[ graph, InfraBall[ centre, r ], "VertexDensity" ],
+        Floor[ radius { 1/3, 2/3, 1 } ] ] },
+    Labeled[ InfraSubstrateHighlight[ graph, { centre -> StandardGray },
+      Epilog -> { StandardGray, AbsoluteThickness[ 1.5 ], Map[
+        vertices |-> MeshPrimitives[
+          ConvexHullMesh[ GraphEmbedding[ graph ][[ Map[ v |-> VertexIndex[ graph, v ], vertices ] ]] ], 1 ],
+        balls ] } ,
+      "ThicknessRange" -> { 1.25, 5 } ], data[ "Name" ] ] ],
+  dimensionSubstrates ], 3 ], ImageSize -> 1200 ]
 ```
 
 ## Covering a region
 
-- Let $N_r(T)$ be the least number of closed balls of radius $r$ covering the target vertices $T$. Their centres may be anywhere in the graph.
-- [FindBallCover]() gives covering centres and minimizes their number by default. [BallCoverNumber]() always gives the minimum. The length of a greedy cover gives an upper bound.
-- The target is read within the surrounding graph: centres may lie outside it, and shortest paths may leave it. Replacing the graph by the target's induced graph changes this question.
-- We first find an exact cover on a small square tiling. The target is gray and each covering ball has its own colour.
+Let $N_r(T)$ be the least number of closed graph balls of radius $r$ covering a target $T$.
+Their centres may lie outside $T$, and shortest paths are measured in the surrounding graph.
+[FindBallCover]() minimizes the number of centres by default; `Method -> "Greedy"` gives an upper bound.
+[BallCoverNumber]() returns the minimum.
+
+Here an exact cover of $B_4(c)$ uses balls of radius two.
+The target is gray.
+Unfilled gray contours show convex envelopes of the covering balls in the drawing, keeping their overlaps visible.
+The cover is computed from graph balls, not these envelopes.
 
 ```wl
 SeedRandom[ 2 ];
 With[
   { graph = InfraSubstrate[ "SquareTilingGraph", "Small", "KeepCoordinates" -> True ] },
-	{ target = InfraBall[ First @ GraphCenter[ graph ], 4 ], radius = 2 },
+  { target = InfraBall[ First @ GraphCenter[ graph ], 4 ], radius = 2 },
   { centres = FindBallCover[ graph, radius, target ] },
-  Column[ {
-    InfraSubstrateHighlight[ graph, Join[ { target -> StandardGray },
-      MapIndexed[ { centre, index } |-> InfraBall[ centre, radius ] -> ColorData[ 97 ][ First[ index ] ], centres ],
-      { centres -> StandardRed } ] ],
-    <| "Radius" -> radius, "Exact count" -> BallCoverNumber[ graph, radius, target ],
-      "Covers target" -> BallCoverQ[ graph, radius, centres, target ] |> } ] ]
+  GraphicsRow[ {
+    Labeled[ InfraSubstrateHighlight[ graph, { target -> StandardGray } ,
+      "ThicknessRange" -> { 1.25, 5 } ], "target" ],
+    Labeled[ Show[ InfraSubstrateHighlight[ graph, { target -> StandardGray, centres -> StandardGray },
+      Epilog -> { StandardGray, AbsoluteThickness[ 1.5 ], Map[
+        point |-> With[
+          { vertices = Keys @ InfraMeasurement[ graph, InfraBall[ point, radius ], "VertexDensity" ] },
+          MeshPrimitives[ ConvexHullMesh[ GraphEmbedding[ graph ][[ Map[ v |-> VertexIndex[ graph, v ], vertices ] ]] ], 1 ] ],
+        centres ] } ,
+      "ThicknessRange" -> { 1.25, 5 } ] ], "minimum radius-two cover" ] }, ImageSize -> 900 ] ]
 ```
 
-The same construction on the larger substrates, now with greedy covers. The target radius is a fixed fraction of the graph radius, and the covering radius a fraction of the target radius.
+The same construction on the six substrates uses greedy covers.
+The covering radius is roughly one third of the target radius.
 
 ```wl
 SeedRandom[ 2 ];
 GraphicsGrid[ Partition[ Map[
   data |-> With[
     { graph = data[ "Graph" ], centre = data[ "Centre" ], targetRadius = data[ "Radius" ] },
-		{ radius = Max[ 1, Floor[ targetRadius / 3 ] ], target = InfraBall[ centre, targetRadius ] },
+    { radius = Max[ 1, Floor[ targetRadius / 3 ] ], target = InfraBall[ centre, targetRadius ] },
     { centres = FindBallCover[ graph, radius, target, Method -> "Greedy" ] },
     Labeled[
-      InfraSubstrateHighlight[ graph, Join[ { target -> StandardGray },
-        MapIndexed[ { point, index } |-> InfraBall[ point, radius ] -> ColorData[ 97 ][ First[ index ] ], centres ],
-        { centres -> StandardRed } ] ],
+      Show[ InfraSubstrateHighlight[ graph, { target -> StandardGray, centres -> StandardGray },
+        Epilog -> { StandardGray, AbsoluteThickness[ 1.5 ], Map[
+          point |-> With[
+            { vertices = Keys @ InfraMeasurement[ graph, InfraBall[ point, radius ], "VertexDensity" ] },
+            MeshPrimitives[ ConvexHullMesh[ GraphEmbedding[ graph ][[ Map[ v |-> VertexIndex[ graph, v ], vertices ] ]] ], 1 ] ],
+          centres ] } ,
+        "ThicknessRange" -> { 1.25, 5 } ] ],
       Row[ { data[ "Name" ], ": ", Length[ centres ], " balls, radius ", radius } ] ] ],
-  dimensionSubstrates ], 2 ] ]
+  dimensionSubstrates ], 3 ], ImageSize -> 1200 ]
 ```
 
-## Two covering slopes
+## Does the exponent depend on resolution?
 
-- **Box reading.** Fix $T=B_\rho(c)$ and vary the covering radius. A $d$-dimensional region needs approximately $r^{-d}$ balls.
-- On a lattice a ball volume is a polynomial in $r+1/2$. We use this shifted radius for the box slope. Using $r$ at these small radii gives a lower reading.
-- **Growth at a fixed resolution.** Fix the covering radius and grow $B_s(c)$. Its covering count is the volume measured in balls of that radius. At radius zero this is exactly the vertex count.
-- We fit one least-squares slope over each window. Successive quotients of integer covering counts jump and can vanish on plateaux.
+Fix $r$ and grow the target $B_s(c)$.
+Counting a radius-zero cover is exactly counting vertices.
+At larger $r$, each covering ball replaces a bounded number of vertices.
+Indeed, if every radius-$r$ ball has at most $M_r$ vertices, then
 
-The profiles below are computed with greedy covers. The box window ends at half the target radius; the growth window starts beyond the first few layers. The vertex-volume slope uses exactly the growth window.
+$$
+\frac{|T|}{M_r}\le N_r(T)\le |T|.
+$$
 
-```wl
-logSlope[ scales_, counts_ ] :=
-  Coefficient[ Fit[ Transpose[ { Log[ N[ scales ] ], Log[ N[ counts ] ] } ], { 1, x }, x ], x ]
-```
+The left inequality counts how many vertices the covering balls contain.
+The right inequality places one ball at each target vertex.
+Therefore, on an infinite graph with this bound, $\log |B_s(c)|/\log s\to d$ implies $\log N_r(B_s(c))/\log s\to d$.
+The multiplicative factor $M_r$ disappears after dividing its logarithm by $\log s$.
+This preserves the growth exponent at each fixed resolution; it does not prove that a finite graph has a power-law window.
+
+The following profiles compare vertex counts with greedy covers of radii one and two.
+For a count $C(s)$ and reference exponent $d$, we plot
+
+$$
+\frac{C(s)/s^d}{C(s_0)/s_0^d},\qquad s_0=4.
+$$
+
+A horizontal profile means that the exponent $d$ describes this measurement over the displayed window.
+Dividing by the first value removes the different units of the three counts.
+The dashed curve in the square-tiling panel is the exact lattice count $2s^2+2s+1$, normalized in the same way.
+It provides a control for the drift caused by individual graph layers.
 
 ```wl
 SeedRandom[ 2 ];
 dimensionProfiles = Map[
   data |-> With[
     { graph = data[ "Graph" ], centre = data[ "Centre" ], radius = data[ "Radius" ] },
-    { boxRadii = Range[ Floor[ radius / 2 ] ], growthRadii = Range[ 3, radius ],
-			target = InfraBall[ centre, radius ] },
-		{ boxCounts = Map[ r |-> Length @ FindBallCover[ graph, r, target, Method -> "Greedy" ], boxRadii ],
-			growthCounts = Map[ s |-> Length @ FindBallCover[ graph, 1, InfraBall[ centre, s ], Method -> "Greedy" ], growthRadii ],
-      volumes = Map[ s |-> Length @ Keys @ InfraMeasurement[ graph, InfraBall[ centre, s ], "VertexDensity" ], growthRadii ] },
-    Join[ data, <| "BoxRadii" -> boxRadii, "BoxCounts" -> boxCounts,
-      "GrowthRadii" -> growthRadii, "GrowthCounts" -> growthCounts, "Volumes" -> volumes,
-      "Box" -> -logSlope[ boxRadii + 1/2, boxCounts ], "UnshiftedBox" -> -logSlope[ boxRadii, boxCounts ],
-      "Growth" -> logSlope[ growthRadii, growthCounts ], "VertexVolume" -> logSlope[ growthRadii, volumes ] |> ] ],
+    { radii = Range[ 4, radius ] },
+    { regions = Map[ s |-> InfraBall[ centre, s ], radii ] },
+    { counts = Prepend[
+        Table[ Map[ region |-> Length @ FindBallCover[ graph, r, region, Method -> "Greedy" ], regions ], { r, 1, 2 } ],
+        InfraMeasurement[ graph, regions, "CountingMeasure" ] ] },
+    Join[ data, <| "GrowthRadii" -> radii, "GrowthCounts" -> counts |> ] ],
   dimensionSubstrates ];
-Grid[ Map[
-  data |-> {
-    ListLogLogPlot[ Transpose[ { data[ "BoxRadii" ] + 1/2, data[ "BoxCounts" ] } ],
-      Joined -> True, AxesLabel -> { "r + 1/2", "cover count" }, PlotLabel -> data[ "Name" ] ],
-    ListLogLogPlot[ { Transpose[ { data[ "GrowthRadii" ], data[ "GrowthCounts" ] } ],
-      Transpose[ { data[ "GrowthRadii" ], data[ "Volumes" ] } ] }, Joined -> True,
-      PlotLegends -> { "radius-one cover", "vertex volume" }, AxesLabel -> { "s", "count" } ] },
-  dimensionProfiles ] ]
-```
-
-The normalized profiles against a horizontal target line: the box count multiplied by the shifted radius to the reference dimension, and the growth counts divided by the radius to that dimension. A flat profile supports the reference exponent over that window.
-
-```wl
-Grid[ Map[
+GraphicsGrid[ Partition[ Map[
   data |-> With[
-    { box = data[ "BoxCounts" ] ( data[ "BoxRadii" ] + 1/2 ) ^ data[ "Reference" ],
-      growth = data[ "GrowthCounts" ] / data[ "GrowthRadii" ] ^ data[ "Reference" ],
-      volume = data[ "Volumes" ] / data[ "GrowthRadii" ] ^ data[ "Reference" ] },
-    { Show[
-        ListPlot[ Transpose[ { data[ "BoxRadii" ], box / First[ box ] } ], Joined -> True,
-          PlotLabel -> data[ "Name" ], AxesLabel -> { "r", "normalized box" }, PlotRange -> All ],
-        Plot[ 1, { r, First @ data[ "BoxRadii" ], Last @ data[ "BoxRadii" ] }, PlotStyle -> Dashed ] ],
-      Show[
-        ListPlot[ { Transpose[ { data[ "GrowthRadii" ], growth / First[ growth ] } ],
-          Transpose[ { data[ "GrowthRadii" ], volume / First[ volume ] } ] }, Joined -> True,
-          PlotLegends -> { "cover", "vertices" }, AxesLabel -> { "s", "normalized growth" }, PlotRange -> All ],
-        Plot[ 1, { s, First @ data[ "GrowthRadii" ], Last @ data[ "GrowthRadii" ] }, PlotStyle -> Dashed ] ] } ],
-  dimensionProfiles ] ]
+    { radii = data[ "GrowthRadii" ], dimension = data[ "Reference" ], square = data[ "Name" ] === "SquareTilingGraph" },
+    { profiles = Map[ counts |-> counts / radii^dimension, data[ "GrowthCounts" ] ] },
+    { compared = If[ square, Append[ profiles, 2 + 2 / radii + 1 / radii^2 ], profiles ] },
+    ListLinePlot[ Map[ profile |-> Transpose[ { radii, profile / First[ profile ] } ], compared ],
+      PlotLabel -> data[ "Name" ],
+      PlotLegends -> If[ square, { "vertices", "radius 1", "radius 2", "exact lattice" }, { "vertices", "radius 1", "radius 2" } ],
+      PlotStyle -> { StandardBlue, StandardOrange, StandardGreen, Directive[ StandardGray, Dashed ] },
+      AxesLabel -> { "s", "normalized count" }, GridLines -> { None, { 1 } }, PlotRange -> All ] ],
+  dimensionProfiles ], 3 ], ImageSize -> 1200 ]
 ```
 
-## Readings at this resolution
+Drift from the horizontal line shows how the finite profiles differ from a single power law.
+On the square lattice, $V(s)/s^2=2+2/s+1/s^2$ explains such drift even though the leading growth dimension is exactly two.
+The measured vertex profile coincides with this dashed control before the finite graph truncates the balls.
+Integer cover counts can produce steps, and the self-similar examples can oscillate with scale.
+The available scale windows differ between substrates.
+The greedy algorithm uses at most one ball per target vertex, so its counts satisfy the same bounds with $M_r$ at fixed $r$.
+Those bounds preserve an asymptotic exponent but do not control the fitting error over this finite window.
 
-The table compares the slopes with the reference dimensions. The carpet has a shorter scale window than the other examples. The cover slopes are readings from greedy upper bounds, not certified estimates of the least-cover slopes.
+## Changing the covering radius
+
+Now fix $T=B_\rho(c)$ and vary $r$.
+For a homogeneous $d$-dimensional region one expects $N_r(T)$ to have order $(\rho/r)^d$ when $1\ll r\ll\rho$.
+We therefore plot the greedy count multiplied by $r^d$, again divided by its first value.
+The graph may be too small to provide a broad interval satisfying both inequalities.
 
 ```wl
-Grid[ Prepend[
-  Map[ data |-> Join[ { data[ "Name" ] },
-    Map[ value |-> NumberForm[ N[ value ], { 4, 2 } ],
-      Lookup[ data, { "Reference", "Box", "UnshiftedBox", "Growth", "VertexVolume" } ] ] ], dimensionProfiles ],
-  { "Substrate", "Reference", "Box (shifted)", "Box (unshifted)", "Cover growth", "Vertex growth" } ],
-  Frame -> All ]
+GraphicsGrid[ Partition[ Map[
+  data |-> With[
+    { graph = data[ "Graph" ], target = InfraBall[ data[ "Centre" ], data[ "Radius" ] ],
+      radii = Range[ Floor[ data[ "Radius" ] / 2 ] ], dimension = data[ "Reference" ] },
+    { counts = Map[ r |-> Length @ FindBallCover[ graph, r, target, Method -> "Greedy" ], radii ] },
+    { profile = counts radii^dimension },
+    ListLinePlot[ Transpose[ { radii, profile / First[ profile ] } ],
+      PlotLabel -> data[ "Name" ], AxesLabel -> { "r", "normalized cover count" },
+      GridLines -> { None, { 1 } }, PlotRange -> All ] ],
+  dimensionSubstrates ], 3 ], ImageSize -> 1200 ]
 ```
 
-## Doubling sees the shape of a ball
+Here the cover size itself changes with resolution, so the fixed-$r$ bound above does not establish the expected exponent.
+The lattice correction, ball shape, target boundary and greedy overhead all affect this plot.
+No universal half-step correction to the covering radius exists.
 
-- A different reading covers $B_{2r}(c)$ by balls of radius $r$ and takes the base-two logarithm of the count.
-- The square tiling admits a small exact cover. The mesh uses more balls in the greedy cover even though both substrates have planar growth dimension.
-- A Euclidean disc cannot tile a doubled disc without overlap. Doubling sees this covering overhead as well as the dimension. The greedy mesh count is an upper bound; it does not prove that no smaller cover exists.
+## What dimension does not determine
 
-The exact square-tiling counts and the greedy mesh counts, computed over interior scales. The pictures show one scale, with each ball in its own colour.
+The square tiling and the plane mesh can have the same volume-growth exponent while having different ball shapes.
+The single-scale quantity $\log_2 N_r(B_{2r}(c))$ also includes the overlap needed to cover a ball, so it need not match that exponent.
+A greedy cover provides only an upper bound for this quantity.
 
-```wl
-SeedRandom[ 2 ];
-With[
-  { square = InfraSubstrate[ "SquareTilingGraph", "Small", "KeepCoordinates" -> True ],
-    mesh = dimensionSubstrates[[ 1 ]][ "Graph" ] },
-	{ cases = { { square, "Square tiling", Automatic, Range[ 1, 3 ] },
-      { mesh, "Plane mesh", "Greedy", Range[ 2, 8 ] } } },
-  Column[ {
-    Grid[ Prepend[ Join @@ Apply[
-      { graph, name, method, radii } |-> Map[
-        r |-> With[
-					{ target = InfraBall[ First @ GraphCenter[ graph ], 2 r ] },
-					{ count = Length @ FindBallCover[ graph, r, target, Method -> method ] },
-          { name, method, r, count, NumberForm[ N[ Log[ 2, count ] ], { 4, 2 } ] } ], radii ], cases, { 1 } ],
-      { "Substrate", "Method", "r", "Cover count", "log2 count" } ], Frame -> All ],
-    GraphicsRow[ Apply[
-      { graph, name, method, radii } |-> With[
-        { r = radii[[ 2 ]], centre = First @ GraphCenter[ graph ] },
-				{ target = InfraBall[ centre, 2 r ] },
-        { centres = FindBallCover[ graph, r, target, Method -> method ] },
-        Labeled[ InfraSubstrateHighlight[ graph, Join[ { target -> StandardGray },
-          MapIndexed[ { point, index } |-> InfraBall[ point, r ] -> ColorData[ 97 ][ First[ index ] ], centres ],
-          { centres -> StandardRed } ] ], name ] ], cases, { 1 } ] ] } ] ]
-```
-
-## The span of points
-
-- The ball hull is the intersection of all balls containing the chosen points. [InfraBallHull]() restricts their radii when a bound is supplied.
-- In Euclidean space this is the convex hull. For $k$ points in general position its dimension is $\min(k-1,d)$.
-- A pair spans a segment, a triple a triangle. The first full-dimensional hull needs $d+1$ points.
-- On a graph we compare the number of hull vertices as the separation $L$ grows. This tests a scaling window, rather than assigning an exact dimension to one finite hull.
-
-On the plane mesh we start at a centre and follow one shortest path for the chosen separation. Each further point is chosen to keep its distances from the earlier points close to that separation. The hulls are blue and their defining points red.
+Ball hulls give another shape-sensitive test.
+[InfraBallHull]() intersects all graph balls containing the chosen points.
+In Euclidean space, the corresponding intersection is their convex hull.
+The gallery compares two tilings, a planar mesh, a sphere mesh, a spatial mesh and a Sierpinski graph.
+Each pair is chosen along a shortest path, and a third point is chosen at roughly the same distance from both endpoints.
+The pair hull is dark blue; additional vertices in the triple hull are pale blue; the three points are red.
+All choices use graph distance and the graphs retain their default layouts.
 
 ```wl
-SeedRandom[ 2 ];
-planeSpans = With[
-  { graph = InfraSubstrate[ "SquareMeshGraph", "Large", "KeepCoordinates" -> True ] },
-  { vertices = VertexList[ graph ], distances = GraphDistanceMatrix[ graph ], centre = First @ GraphCenter[ graph ] },
-  { endpoint = Last @ MaximalBy[ vertices, v |-> GraphDistance[ graph, centre, v ] ] },
-  { path = FindShortestPath[ graph, centre, endpoint ] },
-  Map[ spread |-> With[
+GraphicsGrid[ Partition[ Table[
+  With[
+    { graph = BlockRandom[ InfraSubstrate[ name, "Large" ], RandomSeeding -> 2 ] },
+    { vertices = VertexList[ graph ], distances = GraphDistanceMatrix[ graph ],
+      centre = First @ GraphCenter[ graph ], spread = Floor[ GraphRadius[ graph ] / 3 ] },
+    { centreIndex = VertexIndex[ graph, centre ] },
+    { endpoint = vertices[[ First @ Ordering[ distances[[ centreIndex ]], -1 ] ]] },
+    { path = FindShortestPath[ graph, centre, endpoint ] },
     { pair = Map[ v |-> VertexIndex[ graph, v ], path[[ { 1, spread + 1 } ]] ] },
-    { indices = Nest[ chosen |-> Append[ chosen,
-        First @ Ordering[ Total[ Abs[ distances[[ chosen ]] - spread ] ], 1 ] ], pair, 2 ] },
-    { seeds = vertices[[ indices ]] },
-    <| "Graph" -> graph, "Spread" -> spread, "Seeds" -> seeds,
-      "Hulls" -> Table[ Keys @ InfraMeasurement[ graph, InfraBallHull[ Take[ seeds, k ] ], "VertexDensity" ], { k, 2, 4 } ] |> ],
-    { 2, 4, 6, 8 } ] ];
-GraphicsRow[ Table[ With[
-  { data = Last[ planeSpans ] },
-  Labeled[ InfraSubstrateHighlight[ data[ "Graph" ],
-    { Complement[ data[ "Hulls" ][[ k - 1 ]], Take[ data[ "Seeds" ], k ] ] -> StandardBlue,
-      Take[ data[ "Seeds" ], k ] -> { StandardRed, AbsolutePointSize[ 7 ] } } ],
-    Row[ { k, " points, L = ", data[ "Spread" ] } ] ] ], { k, 2, 4 } ] ]
+    { candidates = Complement[ Range[ Length[ vertices ] ], pair ] },
+    { third = First @ MinimalBy[ candidates, index |-> Total[ Abs[ distances[[ pair, index ]] - spread ] ] ] },
+    { seeds = vertices[[ Append[ pair, third ] ]] },
+    { hulls = Table[ Keys @ InfraMeasurement[ graph, InfraBallHull[ Take[ seeds, k ] ], "VertexDensity" ], { k, 2, 3 } ] },
+    Labeled[ InfraSubstrateHighlight[ graph,
+      { Complement[ hulls[[ 2 ]], Join[ hulls[[ 1 ]], seeds ] ] -> Lighter[ StandardBlue, 0.6 ],
+        Complement[ hulls[[ 1 ]], seeds ] -> StandardBlue,
+        seeds -> { StandardRed, AbsolutePointSize[ 7 ] } } ,
+      "ThicknessRange" -> { 1.25, 5 } ], name ] ],
+  { name, { "SquareTilingGraph", "TriangularTilingGraph", "SquareMeshGraph",
+    "SphereMeshGraph", "CubeMeshGraph", "SierpinskiTriangleGraph" } } ], 3 ], ImageSize -> 1200 ]
 ```
 
-The table computes the hull volumes and their least-squares log-log slopes. The Euclidean reference exponents are one for the pair and two for both larger sets. The mesh, path direction and short window introduce visible errors; adding a fourth point should not introduce another planar dimension.
+These are finite hulls, whose size depends on the surrounding graph and its available enclosing balls.
+A pair can already have a substantial hull.
+The square-tiling example below chooses a pair with a unique shortest path, shown in green.
+Its blue ball hull extends beyond that path.
+We then add a third point outside the path but inside the hull.
+The hull remains unchanged: every ball containing the original pair already contains the third point.
+More generally, if $H(S)$ is the intersection of all balls containing $S$ and $q\in H(S)$, then $H(S\cup\{q\})=H(S)$.
 
 ```wl
 With[
-  { spreads = Lookup[ planeSpans, "Spread" ], counts = Map[ data |-> Length /@ data[ "Hulls" ], planeSpans ] },
-  Column[ {
-    Grid[ Prepend[ MapThread[ Prepend, { counts, spreads } ], { "L", "Pair", "Triple", "Quadruple" } ], Frame -> All ],
-    Grid[ Prepend[ Table[
-      { k, Min[ k - 1, 2 ], NumberForm[ logSlope[ spreads, counts[[ All, k - 1 ]] ], { 4, 2 } ] }, { k, 2, 4 } ],
-      { "Points", "Euclidean exponent", "Measured exponent" } ], Frame -> All ],
-    ListLogLogPlot[ Map[ volumes |-> Transpose[ { spreads, volumes } ], Transpose[ counts ] ],
-      Joined -> True, PlotLegends -> { "pair", "triple", "quadruple" }, AxesLabel -> { "L", "hull vertices" } ] } ] ]
+  { graph = BlockRandom[ InfraSubstrate[ "SquareTilingGraph", "Large" ], RandomSeeding -> 2 ] },
+  { centre = First @ GraphCenter[ graph ], separation = 2 Floor[ GraphRadius[ graph ] / 4 ] },
+  { shell = Keys @ InfraMeasurement[ graph, InfraShell[ centre, separation ], "VertexDensity" ] },
+  { endpoint = SelectFirst[ shell,
+      v |-> InfraMeasurement[ graph, InfraSegment[ centre, v ], "Cardinality" ] === 1 ] },
+  { pair = { centre, endpoint }, distances = { GraphDistance[ graph, centre ], GraphDistance[ graph, endpoint ] } },
+  { pairHull = Keys @ InfraMeasurement[ graph, InfraBallHull[ pair ], "VertexDensity" ],
+    interval = Keys @ InfraMeasurement[ graph, InfraSegment[ centre, endpoint ], "VertexDensity" ] },
+  { third = First @ MaximalBy[ Complement[ pairHull, interval ],
+      v |-> Min[ distances[[ All, VertexIndex[ graph, v ] ]] ] ] },
+  { seeds = Append[ pair, third ] },
+  GraphicsGrid[ { Table[ With[
+    { points = Take[ seeds, k ] },
+    { hull = Keys @ InfraMeasurement[ graph, InfraBallHull[ points ], "VertexDensity" ] },
+    Labeled[ InfraSubstrateHighlight[ graph,
+      { Complement[ hull, Join[ interval, points ] ] -> StandardBlue,
+        InfraSegment[ centre, endpoint ] -> StandardGreen, points -> { StandardRed, AbsolutePointSize[ 7 ] } } ,
+      "ThicknessRange" -> { 1.25, 5 } ],
+      If[ k === 2, "two points: hull beyond the path", "third point: same hull" ] ] ], { k, 2, 3 } ] }, ImageSize -> 1000 ] ]
 ```
 
-The separation stays below half the graph radius. Near the boundary the available ball centres cannot cut away enough vertices, so even the hull of a pair fattens. These finite-window exponents need room around the points.
-
-## A radius bound gives a lens
-
-- A bound admits only enclosing balls with radius at most that bound. Increasing it admits more balls, so their intersection shrinks.
-- Below the least enclosing radius there is no such ball; the empty intersection is the whole graph.
-- Starting at the least enclosing radius, the lens thins towards the unrestricted ball hull. On a finite mesh the final hull can retain a few vertices across its width.
-
-The same pair is shown under increasing radius bounds, followed by its unrestricted hull. The table also checks that each hull is contained in the preceding one.
-
-```wl
-SeedRandom[ 2 ];
-With[
-  { data = Last[ planeSpans ] },
-  { graph = data[ "Graph" ], pair = Take[ data[ "Seeds" ], 2 ] },
-  { enclosingRadius = Min[ Max /@ Transpose[ GraphDistance[ graph, # ] & /@ pair ] ] },
-  { bounds = DeleteDuplicates[ { enclosingRadius, enclosingRadius + 1, enclosingRadius + 2,
-      data[ "Spread" ], Infinity } ] },
-  { hulls = Map[ bound |-> Keys @ InfraMeasurement[ graph, InfraBallHull[ pair, bound ], "VertexDensity" ], bounds ] },
-  Column[ {
-    GraphicsRow[ MapThread[ { bound, hull } |-> Labeled[
-      InfraSubstrateHighlight[ graph,
-        { Complement[ hull, pair ] -> StandardBlue, pair -> { StandardRed, AbsolutePointSize[ 7 ] } } ],
-      Row[ { "radius bound ", bound } ] ], { bounds, hulls } ] ],
-    Grid[ Prepend[ Transpose[ { bounds, Length /@ hulls } ], { "Radius bound", "Hull vertices" } ], Frame -> All ],
-    <| "Nested" -> And @@ MapThread[ SubsetQ, { Most[ hulls ], Rest[ hulls ] } ],
-      "Final hull is unrestricted" -> ( Last[ hulls ] === Keys @ InfraMeasurement[ graph, InfraBallHull[ pair ], "VertexDensity" ] ) |> } ] ]
-```
-
-## The square-tiling trap
-
-The square tiling has a taxicab metric, whose unit ball is a diamond. The ball hull of two opposite points already fills that diamond. A third point on its side adds nothing. Thus a pair can span an area: the Euclidean span rule depends on the shape of the balls.
-
-```wl
-SeedRandom[ 2 ];
-With[
-  { graph = InfraSubstrate[ "SquareTilingGraph", "Large", "KeepCoordinates" -> True ] },
-  { centre = First @ GraphCenter[ graph ] },
-  { coordinates = GraphEmbedding[ graph ], vertices = VertexList[ graph ] },
-  { origin = coordinates[[ VertexIndex[ graph, centre ] ]], neighbours = AdjacencyList[ graph, centre ] },
-  { direction = coordinates[[ VertexIndex[ graph, First[ neighbours ] ] ]] - origin },
-  { seeds = Map[ offset |-> vertices[[ First @ Ordering[
-      Norm /@ ( coordinates - ConstantArray[ origin + offset, Length[ coordinates ] ] ), 1 ] ]],
-      { -4 direction, 4 direction, 4 Reverse[ direction ] { -1, 1 } } ] },
-  { hulls = Table[ Keys @ InfraMeasurement[ graph, InfraBallHull[ Take[ seeds, k ] ], "VertexDensity" ], { k, 2, 3 } ] },
-  Column[ {
-    GraphicsRow[ Table[ Labeled[ InfraSubstrateHighlight[ graph,
-      { Complement[ hulls[[ k - 1 ]], Take[ seeds, k ] ] -> StandardBlue,
-        Take[ seeds, k ] -> { StandardRed, AbsolutePointSize[ 7 ] } } ], Row[ { k, " points" } ] ], { k, 2, 3 } ] ],
-    <| "Pair distance" -> GraphDistance[ graph, Sequence @@ Take[ seeds, 2 ] ],
-      "Hull volumes" -> ( Length /@ hulls ), "Same hull" -> ( First[ hulls ] === Last[ hulls ] ) |> } ] ]
-```
-
-## The span in a cube mesh
-
-The four pictures show nested hulls of two through five points at separation four. The third direction can open when a fourth point is added. The large roster mesh is too coarse for a useful three-dimensional exponent window, so these are pictures of spans rather than a dimension fit.
-
-```wl
-SeedRandom[ 2 ];
-With[
-  { graph = InfraSubstrate[ "CubeMeshGraph", "Large", "KeepCoordinates" -> True,
-      EdgeStyle -> Directive[ StandardGray, Opacity[ 0.08 ] ], VertexStyle -> Directive[ StandardGray, Opacity[ 0.08 ] ] ], spread = 4 },
-  { vertices = VertexList[ graph ], distances = GraphDistanceMatrix[ graph ], centre = First @ GraphCenter[ graph ] },
-  { endpoint = Last @ MaximalBy[ vertices, v |-> GraphDistance[ graph, centre, v ] ] },
-  { path = FindShortestPath[ graph, centre, endpoint ] },
-  { pair = Map[ v |-> VertexIndex[ graph, v ], path[[ { 1, spread + 1 } ]] ] },
-  { indices = Nest[ chosen |-> Append[ chosen,
-      First @ Ordering[ Total[ Abs[ distances[[ chosen ]] - spread ] ], 1 ] ], pair, 3 ] },
-  { seeds = vertices[[ indices ]] },
-  { hulls = Table[ Keys @ InfraMeasurement[ graph, InfraBallHull[ Take[ seeds, k ] ], "VertexDensity" ], { k, 2, 5 } ] },
-  Column[ {
-    GraphicsGrid[ Partition[ Table[ Labeled[ InfraSubstrateHighlight[ graph,
-      { Complement[ hulls[[ k - 1 ]], Take[ seeds, k ] ] -> StandardBlue,
-        Take[ seeds, k ] -> { StandardRed, AbsolutePointSize[ 7 ] } },
-      "PointSizeRange" -> 4 ],
-      Row[ { k, " points, L = ", spread } ] ], { k, 2, 5 } ], 2 ] ],
-    Grid[ Prepend[ Transpose[ { Range[ 2, 5 ], Length /@ hulls } ], { "Points", "Hull vertices" } ], Frame -> All ] } ] ]
-```
+The taxicab-plane calculation explains this filled hull.
+In the taxicab plane, the ball hull of $(-a,0)$ and $(a,0)$ is $|x|+|y|\le a$, for $a>0$.
+For a centre $z$, the least enclosing radius is $a+\|z\|_1$, so the triangle inequality places the diamond in every enclosing ball.
+The radius-$a$ ball at the origin gives the reverse inclusion.
+Thus this pair spans an area even when volume growth has dimension two.
 
 ## Related readings
 
-- [Volume Measurement](paclet:WolframInstitute/InfraGeometry/tutorial/VolumeMeasurementTutorial) compares counting and Riemannian measures of balls, shells and tubes.
-- [MetricDimension]() is a different graph invariant: the size of a resolving set, whose distance coordinates distinguish the vertices.
+- [Volume Measurement](paclet:WolframInstitute/InfraGeometry/tutorial/VolumeMeasurementTutorial) proves a rescaled lattice-volume limit and compares counting with the interior measure.
+- [LogDifferenceQuotients]() reads successive log-log slopes of a volume profile sampled at radii one, two, and so on.
+- [VolumeGrowthObservables]() and [DimensionCurvatureFit]() fit dimension and curvature over a selected scale window.
+- [MetricDimension]() is a different graph invariant: the size of a resolving set whose distances distinguish the vertices.

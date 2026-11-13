@@ -5,80 +5,210 @@ Title: Straightening at a Scale
 Context: WolframInstitute`InfraGeometry`
 Paclet: WolframInstitute/InfraGeometry
 URI: WolframInstitute/InfraGeometry/tutorial/StraighteningAtScaleTutorial
-Keywords: [geodesic, infra-scale, germ, extension, beam, most visited, straightness, segment, tiling, Archimedean tiling]
+Keywords: [geodesic, infra-scale, germ, extension, beam, most visited, straightness, segment, tiling, mesh]
 RelatedGuides: [EuclideanInfrageometry]
 ---
 
-- A **germ** is a shortest path, here of eight edges ending at the centre of the graph. We extend it forward by ten steps.
-- A walk is a **geodesic at infra-scale** $r$ when every $r + 1$ consecutive vertices of it form a shortest path. The observer checks straightness only within a horizon of $r$ steps; at scale $\infty$ the whole walk is a shortest path.
-- The **beam** of the germ at scale $r$ is the set of all geodesics at scale $r$ that extend the germ. A **most visited** member is one that maximizes the sum of the vertex and edge densities of the beam along it.
-- The question: from which scale $r^*$ on is the most visited member of the beam a **segment**, a shortest path between its ends? We answer it on three Archimedean lattices: the trihexagonal tiling $\{3, 6, 3, 6\}$, the truncated square tiling $\{4, 8, 8\}$ and the rhombitrihexagonal tiling $\{3, 4, 6, 4\}$, each the ball of radius 14 about a vertex.
-- The pictures keep the embedding of the substrate so that the reader sees the plane; only the chord deviation below uses it.
-
-## Setup
+Can straightness over a local horizon produce a globally shortest extension?
+We fix an incoming path, extend it by ten steps, and increase the horizon used to test each continuation.
+The resulting beam can change from walks that curl back toward the starting region to shortest paths that leave it.
 
 ```wl
-Needs["WolframInstitute`InfraGeometry`"]
+Needs[ "WolframInstitute`InfraGeometry`" ]
 ```
 
-## The beam at a scale
+## A beam at a scale
 
-- Each picture is one lattice at one scale: the rows are the trihexagonal, the truncated square and the rhombitrihexagonal tiling, the columns the scales $r = 3$ and $r = 6$.
-- The beam is orange and the most visited members are red, all of them; the germ is drawn last.
+A walk is **geodesic at infra-scale** $r$ if each subwalk of at most $r$ edges is a shortest path between its ends.
+At $r=\infty$, the whole walk must be shortest.
+A **germ** is the initial shortest path; here it has eight edges and ends at the graph centre.
+The **beam** consists of its ten-step extensions that satisfy the scale-$r$ condition.
+
+[SelectInfraWalk]() with `"From" -> "MostVisited"` chooses the members with the largest total occupation count along their vertices and edges.
+Counts include repeated visits, so this selection can favour a walk that returns to a busy region.
+We keep all ties.
+
+The rows below are the trihexagonal, truncated square and rhombitrihexagonal tilings.
+The columns use $r=3,4,6$, so each row shows the change as the horizon grows.
+The beam is orange and the selected members are red; the incoming germ is drawn last.
+All shortest-path and occupation calculations use graph distances.
 
 ```wl
-GraphicsGrid @ Table[
+GraphicsGrid[ Table[
   With[
-    {g = Graph[TessellationNeighborhoodGraph[config, 14], Sequence @@ InfraSubstrateStyle["Large"]]},
-    {c = First @ GraphCenter[g]},
-    {germ = First @ RandomInfraSegment[ g, InfraSegment[First @ Keys @ InfraMeasurement[ g, InfraShell[ c, 8 ], "VertexDensity" ], c], 1, RandomSeeding -> 1 ]},
-    {walks = RandomInfraGeodesic[g, germ, r, {10}, All]},
-    InfraSubstrateHighlight[g, {
-      walks -> StandardOrange,
-      SelectInfraWalk[g, walks, All, "From" -> "MostVisited"] -> StandardRed,
-      InfraWalk[germ] -> StandardOrange},
-      "ThicknessRange" -> {1, 3}]],
-  {config, {{3, 6, 3, 6}, {4, 8, 8}, {3, 4, 6, 4}}},
-  {r, {3, 6}}]
+    { g = Graph[ TessellationNeighborhoodGraph[ configuration, 14 ], Sequence @@ InfraSubstrateStyle[ "Large" ] ] },
+    { centre = First @ GraphCenter[ g ] },
+    { start = First @ Keys @ InfraMeasurement[ g, InfraShell[ centre, 8 ], "VertexDensity" ] },
+    { germ = First @ RandomInfraSegment[ g, InfraSegment[ start, centre ], 1, RandomSeeding -> 1 ] },
+    { walks = RandomInfraGeodesic[ g, germ, r, { 10 }, All ] },
+    Labeled[
+      InfraSubstrateHighlight[ g, {
+        walks -> StandardOrange,
+        SelectInfraWalk[ g, walks, All, "From" -> "MostVisited" ] -> StandardRed,
+        InfraWalk[ germ ] -> StandardOrange }, "ThicknessRange" -> { 1.25, 3.75 } ],
+      Row[ { configuration, ", r = ", r } ] ] ],
+  { configuration, { { 3, 6, 3, 6 }, { 4, 8, 8 }, { 3, 4, 6, 4 } } },
+  { r, { 3, 4, 6 } } ], ImageSize -> 1000 ]
 ```
 
-- At scale 3 the beam spreads over a wide region; its members end at 194, 49 and 131 vertices. Every member starts at the germ, so the density is highest there, and the most visited member is the one that stays near the germ: it circles around the end of the germ, on a hexagon, an octagon and a hexagon. A geodesic at a small scale may revisit a vertex, and these members do.
-- At scale 6 the members end at 31, 19 and 22 vertices, and the most visited members run straight away from the germ on all three lattices.
-- The straight members need not continue the germ's direction: they turn by 30° to 43° on the trihexagonal tiling, by 1° or 36° on the truncated square tiling and by 15° on the rhombitrihexagonal tiling. A lattice keeps a direction only up to the cone of its lattice directions.
+A small horizon permits a return around a face whose shorter subwalks are still shortest.
+Increasing $r$ removes such returns from the beam.
+The sets of admissible walks shrink, but their most visited members need not vary monotonically: the occupation counts change with the beam.
 
-## The scale of straightness
+## A local rule can miss a complete turn
 
-- Two readouts of the most visited members, for every scale $r = 2, \ldots, 10$, each the worst over the ties. The extension is a member without the germ.
-- The **excess** of an extension is its length minus the distance between its ends. It is zero exactly when the extension is a segment, so the threshold $r^*$ is the scale where the excess first vanishes.
-- The **chord deviation** is the largest distance of the extension's vertices from the chord joining its ends, read in the plane. The edges of the three tilings have length 1, so it is in units of the edge length.
+On the cycle graph $C_q$ with $q\geq3$, follow the edges repeatedly in one direction.
+A subwalk of $k\leq q$ edges has endpoint distance $\min(k,q-k)$.
+It is shortest precisely when $k\leq\lfloor q/2\rfloor$.
+Thus arbitrarily many complete turns satisfy every horizon $r\leq\lfloor q/2\rfloor$, although each complete turn returns to its starting vertex.
+A horizon of $\lfloor q/2\rfloor+1$ detects a shortcut as soon as that many edges have been traversed.
+
+The two panels use the same twelve-cycle in its native layout.
+At horizon six, the orange half-cycle and its blue complement have equal length.
+At horizon seven, the seven orange edges have a five-edge blue shortcut.
+This exact obstruction depends on the length of a cycle, not its apparent roundness in the drawing.
+
+```wl
+GraphicsRow[
+  Table[
+    With[
+      { g = CycleGraph[ 12, Sequence @@ InfraSubstrateStyle[ "Medium" ] ] },
+      { forward = Range[ r + 1 ], complement = Join[ { 1 }, Range[ 12, r + 1, -1 ] ] },
+      Labeled[
+        InfraSubstrateHighlight[ g, {
+          InfraWalk[ forward ] -> StandardOrange,
+          InfraWalk[ complement ] -> StandardBlue, { 1, r + 1 } -> StandardRed },
+          "ThicknessRange" -> { 2, 5 } ],
+        Row[ { "r = ", r, ": ", r, " edges versus ", 12 - r } ] ] ],
+    { r, { 6, 7 } } ],
+  ImageSize -> 900 ]
+```
+
+Consequently, local straightness alone cannot guarantee global straightness on arbitrary graphs.
+The lattice experiments test whether the occupation-based selection suppresses these returns before the horizon itself excludes them.
+
+## The same rule on meshes
+
+The rows below are large square, cube and sphere meshes; the columns use horizons $r=2,4,6$.
+Each panel starts from a six-edge germ and samples 128 continuations of at most eight further steps.
+Each step chooses an admissible neighbour uniformly.
+The sample is orange, its most visited members red, and the incoming germ blue.
+Selection here is relative to this finite sample.
+The points and walks are chosen entirely from graph distances; the layouts are illustrations.
+
+```wl
+GraphicsGrid[
+  Table[
+    With[
+      { g = BlockRandom[ InfraSubstrate[ specification[[ 1 ]], "Large" ], RandomSeeding -> 2 ] },
+      { centre = First @ GraphCenter[ g ] },
+      { start = First @ Keys @ InfraMeasurement[ g, InfraShell[ centre, 6 ], "VertexDensity" ] },
+      { germ = First @ RandomInfraSegment[ g, InfraSegment[ start, centre ], 1, RandomSeeding -> 1 ] },
+      { walks = RandomInfraGeodesic[ g, germ, r, UpTo[ 8 ], UpTo[ 128 ],
+          "NextVertexFunction" -> RandomChoice, RandomSeeding -> 1 ] },
+      Labeled[
+        InfraSubstrateHighlight[ g, {
+          walks -> StandardOrange,
+          SelectInfraWalk[ g, walks, All, "From" -> "MostVisited" ] -> StandardRed,
+          InfraWalk[ germ ] -> StandardBlue }, "ThicknessRange" -> { 1.25, 3.75 } ],
+        Row[ { specification[[ 2 ]], ", r = ", r } ] ] ],
+    { specification, {
+        { "SquareMeshGraph", "square mesh" }, { "CubeMeshGraph", "cube mesh" },
+        { "SphereMeshGraph", "sphere mesh" } } },
+    { r, { 2, 4, 6 } } ],
+  ImageSize -> 1200 ]
+```
+
+## Measuring straightness
+
+Let $\eta=(x_0,\ldots,x_m)$ be the extension after removing the incoming germ, while retaining their common vertex $x_0$.
+Its normalized excess is
+
+$$
+E(\eta)=\frac{m-d(x_0,x_m)}{m}.
+$$
+
+This is zero exactly when the extension is a shortest path.
+For the unit-edge planar embedding $\varphi$, also measure
+
+$$
+A(\eta)=\frac{1}{m}\max_i\operatorname{dist}\bigl(\varphi(x_i),[\varphi(x_0),\varphi(x_m)]\bigr).
+$$
+
+This second quantity measures deviation from a Euclidean chord.
+A graph shortest path may still be a staircase with positive chord deviation.
+Returning to the three lattices, the next pictures isolate the selected extensions at $r=6$.
+The incoming germ is blue, the extensions red and their Euclidean chords dashed orange.
+The staircase shape remains visible even when the graph excess is zero.
+
+```wl
+GraphicsRow[
+  Table[
+    With[
+      { g = Graph[ TessellationNeighborhoodGraph[ configuration, 14 ], Sequence @@ InfraSubstrateStyle[ "Large" ] ] },
+      { centre = First @ GraphCenter[ g ],
+        coordinates = AssociationThread[ VertexList[ g ], GraphEmbedding[ g ] ] },
+      { start = First @ Keys @ InfraMeasurement[ g, InfraShell[ centre, 8 ], "VertexDensity" ] },
+      { germ = First @ RandomInfraSegment[ g, InfraSegment[ start, centre ], 1, RandomSeeding -> 1 ] },
+      { walks = RandomInfraGeodesic[ g, germ, 6, { 10 }, All ] },
+      { selected = SelectInfraWalk[ g, walks, All, "From" -> "MostVisited" ] },
+      { extensions = Map[
+          walk |-> Drop[ Last /@ SortBy[ VertexList[ walk ], First ], Length[ germ ] - 1 ], selected ] },
+      InfraSubstrateHighlight[ g, { selected -> StandardRed, InfraWalk[ germ ] -> StandardBlue },
+        Epilog -> { StandardOrange, Dashed,
+          Map[ path |-> Line[ Lookup[ coordinates, { First[ path ], Last[ path ] } ] ], extensions ] } ,
+        "ThicknessRange" -> { 1.25, 5 } ] ],
+    { configuration, { { 3, 6, 3, 6 }, { 4, 8, 8 }, { 3, 4, 6, 4 } } } ],
+  ImageSize -> 1000 ]
+```
+
+Each plotted value below is the maximum over all tied most visited members.
 
 ```wl
 With[
-  {readouts = Table[
-    With[
-      {g = TessellationNeighborhoodGraph[config, 14]},
-      {c = First @ GraphCenter[g], d = GraphDistanceMatrix[g], xy = AssociationThread[VertexList[g], GraphEmbedding[g]]},
-      {germ = First @ RandomInfraSegment[ g, InfraSegment[First @ Keys @ InfraMeasurement[ g, InfraShell[ c, 8 ], "VertexDensity" ], c], 1, RandomSeeding -> 1 ]},
-      Table[
-        With[
-          {walks = RandomInfraGeodesic[g, germ, r, {10}, All]},
-          {ext = Drop[Last /@ Sort @ VertexList @ #, Length[germ] - 1] & /@ SelectInfraWalk[g, walks, All, "From" -> "MostVisited"]},
-          {{r, Max[Length[#] - 1 - d[[VertexIndex[g, First @ #], VertexIndex[g, Last @ #]]] & /@ ext]},
-           {r, Max[Max[RegionDistance[Line[Lookup[xy, {First @ #, Last @ #}]], Lookup[xy, #]]] & /@ ext]}}],
-        {r, 2, 10}]],
-    {config, {{3, 6, 3, 6}, {4, 8, 8}, {3, 4, 6, 4}}}]},
-  GraphicsRow[{
-    ListLinePlot[readouts[[All, All, 1]], PlotRange -> All, AxesLabel -> {Text["r"], Text["excess"]},
-      PlotLegends -> Text /@ {"trihexagonal", "truncated square", "rhombitrihexagonal"}],
-    ListLinePlot[readouts[[All, All, 2]], PlotRange -> All, AxesLabel -> {Text["r"], Text["deviation"]},
-      PlotLegends -> Text /@ {"trihexagonal", "truncated square", "rhombitrihexagonal"}]}]]
+  { readouts = Table[
+      With[
+        { g = TessellationNeighborhoodGraph[ configuration, 14 ] },
+        { centre = First @ GraphCenter[ g ], distances = GraphDistanceMatrix[ g ],
+          coordinates = AssociationThread[ VertexList[ g ], GraphEmbedding[ g ] ] },
+        { start = First @ Keys @ InfraMeasurement[ g, InfraShell[ centre, 8 ], "VertexDensity" ] },
+        { germ = First @ RandomInfraSegment[ g, InfraSegment[ start, centre ], 1, RandomSeeding -> 1 ] },
+        Table[
+          With[
+            { walks = RandomInfraGeodesic[ g, germ, r, { 10 }, All ] },
+            { extensions = Map[
+                walk |-> Drop[ Last /@ SortBy[ VertexList[ walk ], First ], Length[ germ ] - 1 ],
+                SelectInfraWalk[ g, walks, All, "From" -> "MostVisited" ] ] },
+            { { r, Max @ Map[
+                  path |-> 1 - distances[[ VertexIndex[ g, First[ path ] ], VertexIndex[ g, Last[ path ] ] ]] /
+                    ( Length[ path ] - 1 ), extensions ] },
+              { r, Max @ Map[
+                  path |-> Max[ RegionDistance[
+                    Line[ Lookup[ coordinates, { First[ path ], Last[ path ] } ] ], Lookup[ coordinates, path ] ] ] /
+                    ( Length[ path ] - 1 ), extensions ] } } ],
+          { r, 2, 10 } ] ],
+      { configuration, { { 3, 6, 3, 6 }, { 4, 8, 8 }, { 3, 4, 6, 4 } } } ] },
+  GraphicsRow[ {
+    ListLinePlot[ readouts[[ All, All, 1 ]], PlotRange -> All, AxesLabel -> { "r", "E" },
+      PlotLegends -> { "trihexagonal", "truncated square", "rhombitrihexagonal" } ],
+    ListLinePlot[ readouts[[ All, All, 2 ]], PlotRange -> All, AxesLabel -> { "r", "A" },
+      PlotLegends -> { "trihexagonal", "truncated square", "rhombitrihexagonal" } ] }, ImageSize -> 1000 ] ]
 ```
 
-- Below the threshold the most visited extension is far from a segment; at the threshold the excess drops to zero and stays there. The most visited member jumps from a walk near the germ to a segment.
-- The trihexagonal tiling straightens first, at $r^* = 4$, then the rhombitrihexagonal tiling at $r^* = 5$, then the truncated square tiling at $r^* = 6$.
-- On the rhombitrihexagonal tiling the deviation falls at the threshold to a floor of 0.8, the staircase of a segment off the lattice directions. On the truncated square tiling it falls to 1.2 at the threshold and settles at 2.0. On the trihexagonal tiling it grows after the threshold, from 1.6 to 2.5: a straight extension zigzags farther from its chord than the bent one.
+In this finite sweep, the excess first vanishes at $r=4$ on the trihexagonal tiling, $r=6$ on the truncated square tiling and $r=5$ on the rhombitrihexagonal tiling, and remains zero through $r=10$.
+A zero excess means every selected extension is shortest; it says nothing by itself about continuing the germ's Euclidean direction.
+Once $r\geq m=10$, every admissible extension must be shortest because the horizon contains that whole extension.
+Straightening at a smaller $r$ therefore measures the effect of selecting the most visited members before the local constraint forces it.
 
-## Open questions
+## Comparing resolutions
 
-- [[ The inextensible geodesic at scale $r$ as an object: the infinite walks of the window graph from the germ's window. Is its most visited member eventually a ray at every scale above $r^*$, and how does $r^*$ depend on the length of the germ? ]]
-- [[ The loss of direction on a lattice: the straight members follow the cone, not the germ. Does a mesh or a sprinkling, with no preferred directions, restore the germ's direction at large scales? ]]
+This experiment changes the observation horizon on a fixed substrate and a fixed extension length.
+A comparison across resolutions would instead grow the germ length, extension length $m$ and horizon $r$ together, keeping their ratios fixed.
+Lengths in the pictures would be divided by $m$, while $E$ and $A$ already have no units.
+Scale consistency would mean that these normalized readouts approach stable functions of $r/m$.
+The present finite sweep does not establish that limit.
+
+Two questions remain.
+At fixed $r$, do the selected extensions approach rays as their allowed length grows, and how does this depend on the germ?
+On meshes without the same preferred lattice directions, does the selected continuation recover the germ's direction at large scales?
+For concentration of the whole path family under a specified rescaling, see [The Breathless Line](paclet:WolframInstitute/InfraGeometry/tutorial/BreathlessLineTutorial).
